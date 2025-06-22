@@ -6,6 +6,8 @@ import org.springframework.data.mongodb.core.mapping.DBRef;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +20,9 @@ public class Student extends User {
     private String course;
     private String batch;
     private int semester;
+    private String department;
+    private LocalDate dob;
+    private String profilePhoto;
     
     @DBRef
     private Mentor assignedMentor;
@@ -30,7 +35,8 @@ public class Student extends User {
     
     public Student(String username, String email, String password, String firstName, 
                   String lastName, String phoneNumber, String studentId, 
-                  String course, String batch, int semester) {
+                  String course, String batch, int semester, String department,
+                  LocalDate dob, String profilePhoto) {
         super();
         this.setUsername(username);
         this.setEmail(email);
@@ -43,7 +49,35 @@ public class Student extends User {
         this.course = course;
         this.batch = batch;
         this.semester = semester;
+        this.department = department;
+        this.dob = dob;
+        this.profilePhoto = profilePhoto;
         this.attendance = 0.0;
         this.cgpa = 0.0;
+    }
+    
+    // Getters and setters for new fields
+    public String getDepartment() {
+        return department;
+    }
+    
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+    
+    public LocalDate getDob() {
+        return dob;
+    }
+    
+    public void setDob(LocalDate dob) {
+        this.dob = dob;
+    }
+    
+    public String getProfilePhoto() {
+        return profilePhoto;
+    }
+    
+    public void setProfilePhoto(String profilePhoto) {
+        this.profilePhoto = profilePhoto;
     }
 }

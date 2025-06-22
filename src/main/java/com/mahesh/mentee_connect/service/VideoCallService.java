@@ -2,8 +2,13 @@
 package com.mahesh.mentee_connect.service;
 
 import com.mahesh.mentee_connect.entity.VideoCall;
+import com.mahesh.mentee_connect.model.Student;
 import com.mahesh.mentee_connect.repository.VideoCallRepository;
+import com.mahesh.mentee_connect.repository.StudentRepository;
+import com.mahesh.mentee_connect.security.services.SecurityService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,8 +53,14 @@ public class VideoCallService {
         return videoCallRepository.findByStatus("SCHEDULED");
     }
 
-    // Join a video call (for mentees)
-    public VideoCall joinVideoCall(String roomId, String menteeId, String password) {
+    @Autowired
+    private StudentRepository studentRepository;
+    
+    @Autowired
+    private SecurityService securityService;
+    
+    // Join a video call (for mentees and mentors)
+    public VideoCall joinVideoCall(String roomId, String participantId, String participantName, String password) {
         Optional<VideoCall> optionalCall = videoCallRepository.findByRoomId(roomId);
         
         if (optionalCall.isEmpty()) {
@@ -64,7 +75,7 @@ public class VideoCallService {
         }
         
         // Check if already joined
-        if (videoCall.getParticipants().contains(menteeId)) {
+        if (videoCall.getParticipants().contains(participantId)) {
             return videoCall; // Already joined
         }
         
@@ -74,8 +85,25 @@ public class VideoCallService {
             throw new RuntimeException("Meeting is full");
         }
         
+        // If participant is a student, check if they are assigned to the mentor who created the call
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isStudent = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
+        
+        if (isStudent) {
+            // Get the student by ID
+            Student student = studentRepository.findById(participantId)
+                .orElseThrow(() -> new RuntimeException("Student not found"));
+            
+            // Check if the student is assigned to the mentor who created the call
+            if (student.getAssignedMentor() == null || 
+                !student.getAssignedMentor().getId().equals(videoCall.getMentorId())) {
+                throw new RuntimeException("You can only join video calls hosted by your assigned mentor");
+            }
+        }
+        
         // Add participant
-        videoCall.getParticipants().add(menteeId);
+        videoCall.getParticipants().add(participantId);
         return videoCallRepository.save(videoCall);
     }
 

@@ -2,6 +2,9 @@ package com.mahesh.mentee_connect.dto;
 
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 public class MenteeUpdateRequest {
@@ -15,6 +18,14 @@ public class MenteeUpdateRequest {
     @Pattern(regexp = "^\\+?[0-9]{10,15}$", message = "Phone number must be a valid number")
     private String phoneNumber;
     
+    private String department;
+    private List<String> skills;
+    private List<String> interests;
+    private String mentorNotes;
+    private String profilePhoto;
+    private String email;
+    private String role;
+    private LocalDate dob;
     private String course;
     private Integer semester;
     private Double cgpa;
@@ -76,4 +87,69 @@ public class MenteeUpdateRequest {
     public void setAdditionalDetails(Map<String, String> additionalDetails) {
         this.additionalDetails = additionalDetails;
     }
-} 
+
+    // New getters and setters
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    public List<String> getSkills() {
+        return skills;
+    }
+
+    public void setSkills(List<String> skills) {
+        this.skills = skills;
+    }
+
+    public List<String> getInterests() {
+        return interests;
+    }
+
+    public void setInterests(List<String> interests) {
+        this.interests = interests;
+    }
+
+    public String getMentorNotes() {
+        return mentorNotes;
+    }
+
+    public void setMentorNotes(String mentorNotes) {
+        this.mentorNotes = mentorNotes;
+    }
+
+    public String getProfilePhoto() {
+        return profilePhoto;
+    }
+
+    public void setProfilePhoto(String profilePhoto) {
+        this.profilePhoto = profilePhoto;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public LocalDate getDob() {
+        return dob;
+    }
+
+    public void setDob(LocalDate dob) {
+        this.dob = dob;
+    }
+}

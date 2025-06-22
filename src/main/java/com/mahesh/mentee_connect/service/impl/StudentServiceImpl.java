@@ -3,11 +3,15 @@ package com.mahesh.mentee_connect.service.impl;
 import com.mahesh.mentee_connect.model.Student;
 import com.mahesh.mentee_connect.model.Mentor;
 import com.mahesh.mentee_connect.model.Meeting;
+import com.mahesh.mentee_connect.model.MenteeTask;
+import com.mahesh.mentee_connect.model.MenteeAttendance;
 import com.mahesh.mentee_connect.dto.MentorResponse;
 import com.mahesh.mentee_connect.dto.ProgressReport;
 import com.mahesh.mentee_connect.repository.StudentRepository;
 import com.mahesh.mentee_connect.repository.MentorRepository;
 import com.mahesh.mentee_connect.repository.MeetingRepository;
+import com.mahesh.mentee_connect.repository.MenteeTaskRepository;
+import com.mahesh.mentee_connect.repository.MenteeAttendanceRepository;
 import com.mahesh.mentee_connect.service.StudentService;
 import com.mahesh.mentee_connect.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +57,12 @@ public class StudentServiceImpl implements StudentService {
     
     @Autowired
     private MeetingRepository meetingRepository;
+    
+    @Autowired
+    private MenteeTaskRepository menteeTaskRepository;
+    
+    @Autowired
+    private MenteeAttendanceRepository menteeAttendanceRepository;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -225,14 +235,44 @@ public class StudentServiceImpl implements StudentService {
     @Transactional(readOnly = true)
     public List<ProgressReport> getProgressReports(String studentId) {
         Student student = getStudentById(studentId);
-        // TODO: Implement actual progress report retrieval logic
-        // This is a placeholder implementation
-        ProgressReport report = new ProgressReport();
-        report.setId(studentId);
-        report.setReportDate(LocalDateTime.now());
-        report.setAttendance(student.getAttendance());
-        report.setCgpa(student.getCgpa());
-        return List.of(report);
+        
+        // Retrieve tasks and attendance data for the student
+        List<MenteeTask> tasks = menteeTaskRepository.findByStudentId(studentId);
+        List<MenteeAttendance> attendanceRecords = menteeAttendanceRepository.findByStudentId(studentId);
+        
+        // Create a progress report based on actual data
+        ProgressReport currentReport = new ProgressReport();
+        currentReport.setId(UUID.randomUUID().toString());
+        currentReport.setStudentId(studentId);
+        currentReport.setStudentName(student.getFirstName() + " " + student.getLastName());
+        currentReport.setReportDate(LocalDateTime.now());
+        currentReport.setAttendance(student.getAttendance());
+        currentReport.setCgpa(student.getCgpa());
+        
+        // Calculate task completion rate
+        if (!tasks.isEmpty()) {
+            long completedTasks = tasks.stream()
+                    .filter(task -> task.getStatus() == MenteeTask.TaskStatus.COMPLETED)
+                    .count();
+            double completionRate = (double) completedTasks / tasks.size() * 100.0;
+            currentReport.setTaskCompletionRate(Math.round(completionRate * 10.0) / 10.0); // Round to 1 decimal place
+        }
+        
+        // Calculate recent attendance rate (last 30 days)
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        List<MenteeAttendance> recentAttendance = attendanceRecords.stream()
+                .filter(a -> a.getDate().isAfter(thirtyDaysAgo.toLocalDate()))
+                .collect(Collectors.toList());
+        
+        if (!recentAttendance.isEmpty()) {
+            long presentCount = recentAttendance.stream()
+                    .filter(a -> a.getStudentStatus(studentId) == MenteeAttendance.AttendanceStatus.PRESENT)
+                    .count();
+            double attendanceRate = (double) presentCount / recentAttendance.size() * 100.0;
+            currentReport.setRecentAttendanceRate(Math.round(attendanceRate * 10.0) / 10.0); // Round to 1 decimal place
+        }
+        
+        return List.of(currentReport);
     }
 
     @Override
@@ -442,4 +482,4 @@ public class StudentServiceImpl implements StudentService {
         
         return dto;
     }
-} 
+}

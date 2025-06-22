@@ -253,9 +253,30 @@ public class MentorServiceImpl implements MentorService {
         if (updateRequest.getCgpa() != null) {
             student.setCgpa(updateRequest.getCgpa());
         }
+        if (updateRequest.getDepartment() != null) {
+            student.setDepartment(updateRequest.getDepartment());
+        }
+        if (updateRequest.getEmail() != null) {
+            student.setEmail(updateRequest.getEmail());
+        }
+        if (updateRequest.getDob() != null) {
+            student.setDob(updateRequest.getDob());
+        }
+        if (updateRequest.getProfilePhoto() != null) {
+            student.setProfilePhoto(updateRequest.getProfilePhoto());
+        }
         
         // Save the updated student
         student = studentRepository.save(student);
+        
+        // Save mentor notes and other mentor-specific updates
+        if (updateRequest.getMentorNotes() != null || 
+            updateRequest.getSkills() != null || 
+            updateRequest.getInterests() != null) {
+            
+            // Logic to save mentor-specific updates would go here
+            // This might involve updating a separate mentor-student relationship entity
+        }
         
         // Return the updated student as DTO
         return new StudentMentorDTO(
@@ -274,4 +295,4 @@ public class MentorServiceImpl implements MentorService {
             mentorId
         );
     }
-} 
+}

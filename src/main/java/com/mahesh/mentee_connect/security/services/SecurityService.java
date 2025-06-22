@@ -4,7 +4,9 @@ import com.mahesh.mentee_connect.model.MenteeTask;
 import com.mahesh.mentee_connect.model.MentorUpdate;
 import com.mahesh.mentee_connect.model.MenteeAttendance;
 import com.mahesh.mentee_connect.repository.MenteeTaskRepository;
+import com.mahesh.mentee_connect.repository.MentorRepository;
 import com.mahesh.mentee_connect.repository.MentorUpdateRepository;
+import com.mahesh.mentee_connect.repository.StudentRepository;
 import com.mahesh.mentee_connect.repository.MenteeAttendanceRepository;
 import com.mahesh.mentee_connect.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,12 @@ public class SecurityService {
     
     @Autowired
     private MenteeAttendanceRepository menteeAttendanceRepository;
+    
+    @Autowired
+    private StudentRepository studentRepository;
+    
+    @Autowired
+    private MentorRepository mentorRepository;
 
     /**
      * Check if the current authenticated user has the ID provided
@@ -33,6 +41,37 @@ public class SecurityService {
     public boolean isCurrentUser(String userId) {
         String currentUserId = authService.getCurrentUserId();
         return currentUserId != null && currentUserId.equals(userId);
+    }
+    
+    /**
+     * Check if the current authenticated user is a mentor
+     */
+    public boolean isCurrentUserMentor() {
+        return authService.isCurrentUserMentor();
+    }
+    
+    /**
+     * Check if the current authenticated user is a student
+     */
+    public boolean isCurrentUserStudent() {
+        return authService.isCurrentUserStudent();
+    }
+    
+    /**
+     * Check if the current authenticated user is an admin
+     */
+    public boolean isCurrentUserAdmin() {
+        return authService.isCurrentUserAdmin();
+    }
+    
+    /**
+     * Check if a student is assigned to a specific mentor
+     */
+    public boolean isStudentAssignedToMentor(String studentId, String mentorId) {
+        return studentRepository.findById(studentId)
+                .map(student -> student.getAssignedMentor() != null && 
+                     student.getAssignedMentor().getId().equals(mentorId))
+                .orElse(false);
     }
     
     /**
@@ -76,4 +115,4 @@ public class SecurityService {
                 .map(attendance -> currentUserId.equals(attendance.getMentorId()))
                 .orElse(false);
     }
-} 
+}

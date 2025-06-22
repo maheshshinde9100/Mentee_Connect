@@ -10,9 +10,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 @RestController
 @RequestMapping("/video-calls")
 @CrossOrigin(origins = "*") // Configure as per your frontend URL
+@PreAuthorize("hasRole('MENTOR') or hasRole('STUDENT')")
 public class VideoCallController {
 
     @Autowired
@@ -33,9 +38,13 @@ public class VideoCallController {
 
     // Create new video call (Mentor only)
     @PostMapping("/create")
+    @PreAuthorize("hasRole('MENTOR')")
     public ResponseEntity<?> createVideoCall(@RequestBody Map<String, Object> request) {
         try {
-            String mentorId = (String) request.get("mentorId");
+            // Get the current authenticated mentor
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String mentorId = authentication.getName();
+            
             String mentorName = (String) request.get("mentorName");
             String title = (String) request.get("title");
             String description = (String) request.get("description");
@@ -69,15 +78,19 @@ public class VideoCallController {
         return ResponseEntity.ok(videoCalls);
     }
 
-    // Join video call (Mentee)
+    // Join video call
     @PostMapping("/join")
     public ResponseEntity<?> joinVideoCall(@RequestBody Map<String, String> request) {
         try {
             String roomId = request.get("roomId");
-            String menteeId = request.get("menteeId");
+            String participantName = request.get("participantName");
             String password = request.get("password");
             
-            VideoCall videoCall = videoCallService.joinVideoCall(roomId, menteeId, password);
+            // Get the current authenticated user
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String participantId = authentication.getName();
+            
+            VideoCall videoCall = videoCallService.joinVideoCall(roomId, participantId, participantName, password);
             return ResponseEntity.ok(videoCall);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error joining video call: " + e.getMessage());
@@ -86,10 +99,14 @@ public class VideoCallController {
 
     // Start video call (Mentor only)
     @PostMapping("/start")
+    @PreAuthorize("hasRole('MENTOR')")
     public ResponseEntity<?> startVideoCall(@RequestBody Map<String, String> request) {
         try {
             String roomId = request.get("roomId");
-            String mentorId = request.get("mentorId");
+            
+            // Get the current authenticated mentor
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String mentorId = authentication.getName();
             
             VideoCall videoCall = videoCallService.startVideoCall(roomId, mentorId);
             return ResponseEntity.ok(videoCall);
@@ -100,10 +117,14 @@ public class VideoCallController {
 
     // End video call (Mentor only)
     @PostMapping("/end")
+    @PreAuthorize("hasRole('MENTOR')")
     public ResponseEntity<?> endVideoCall(@RequestBody Map<String, String> request) {
         try {
             String roomId = request.get("roomId");
-            String mentorId = request.get("mentorId");
+            
+            // Get the current authenticated mentor
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String mentorId = authentication.getName();
             
             VideoCall videoCall = videoCallService.endVideoCall(roomId, mentorId);
             return ResponseEntity.ok(videoCall);
@@ -112,14 +133,17 @@ public class VideoCallController {
         }
     }
 
-    // Leave video call (Mentee)
+    // Leave video call
     @PostMapping("/leave")
     public ResponseEntity<?> leaveVideoCall(@RequestBody Map<String, String> request) {
         try {
             String roomId = request.get("roomId");
-            String menteeId = request.get("menteeId");
             
-            VideoCall videoCall = videoCallService.leaveVideoCall(roomId, menteeId);
+            // Get the current authenticated user
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String participantId = authentication.getName();
+            
+            VideoCall videoCall = videoCallService.leaveVideoCall(roomId, participantId);
             return ResponseEntity.ok(videoCall);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error leaving video call: " + e.getMessage());
