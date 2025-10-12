@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Meeting Room</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .video-container { display: flex; gap: 20px; margin: 20px 0; }
+        .video-box { width: 300px; height: 200px; background: #000; border-radius: 8px; }
+        .controls { margin: 20px 0; }
+        .btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .waiting-room { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .participant-item { padding: 10px; border-bottom: 1px solid #dee2e6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Video Meeting Room</h1>
+        
+        <!-- Meeting Info -->
+        <div id="meeting-info">
+            <h3 id="meeting-title">Loading...</h3>
+            <p id="meeting-description"></p>
+            <p><strong>Room ID:</strong> <span id="room-id"></span></p>
+            <p><strong>Join Link:</strong> <input type="text" id="join-link" readonly style="width: 400px;"></p>
+            <button class="btn btn-primary" onclick="copyJoinLink()">Copy Link</button>
+        </div>
+
+        <!-- Video Area -->
+        <div class="video-container">
+            <div class="video-box" id="local-video">
+                <p style="color: white; text-align: center; padding-top: 80px;">Your Video</p>
+            </div>
+            <div class="video-box" id="remote-video">
+                <p style="color: white; text-align: center; padding-top: 80px;">Remote Video</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="btn btn-success" id="start-btn" onclick="startMeeting()">Start Meeting</button>
+            <button class="btn btn-primary" id="join-btn" onclick="joinMeeting()">Join Meeting</button>
+            <button class="btn btn-danger" id="end-btn" onclick="endMeeting()">End Meeting</button>
+            <button class="btn btn-primary" onclick="toggleCamera()">Toggle Camera</button>
+            <button class="btn btn-primary" onclick="toggleMicrophone()">Toggle Mic</button>
+        </div>
+
+        <!-- Waiting Room (for mentors) -->
+        <div id="waiting-room" class="waiting-room" style="display: none;">
+            <h4>Waiting Room</h4>
+            <div id="waiting-participants"></div>
+        </div>
+
+        <!-- Participants List -->
+        <div id="participants-list">
+            <h4>Participants</h4>
+            <div id="participants"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script>
+        let stompClient = null;
+        let roomId = new URLSearchParams(window.location.search).get('roomId');
+        let currentUser = 'user123'; // This should come from authentication
+        let userRole = 'MENTOR'; // This should come from authentication
+
+        // Initialize WebSocket connection
+        function connect() {
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function (frame) {
+                console.log('Connected: ' + frame);
+                
+                // Subscribe to meeting updates
+                stompClient.subscribe('/topic/meeting/' + roomId + '/join-requests', function (message) {
+                    const data = JSON.parse(message.body);
+                    if (userRole === 'MENTOR') {
+                        showJoinRequest(data);
+                    }
+                });
+                
+                // Subscribe to approval notifications
+                stompClient.subscribe('/queue/user/' + currentUser + '/meeting-approval', function (message) {
+                    const data = JSON.parse(message.body);
+                    handleApprovalResponse(data);
+                });
+            });
+        }
+
+        // Load meeting details
+        async function loadMeetingDetails() {
+            try {
+                const response = await fetch(`/video-calls/room/${roomId}`);
+                const meeting = await response.json();
+                
+                document.getElementById('meeting-title').textContent = meeting.title;
+                document.getElementById('meeting-description').textContent = meeting.description;
+                document.getElementById('room-id').textContent = meeting.roomId;
+                document.getElementById('join-link').value = window.location.origin + meeting.joinLink;
+                
+                // Show waiting room for mentors
+                if (userRole === 'MENTOR') {
+                    document.getElementById('waiting-room').style.display = 'block';
+                    loadWaitingParticipants();
+                }
+                
+                updateParticipantsList(meeting.participants);
+            } catch (error) {
+                console.error('Error loading meeting details:', error);
+            }
+        }
+
+        // Start meeting (mentor only)
+        async function startMeeting() {
+            try {
+                const response = await fetch('/video-calls/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId: roomId })
+                });
+                
+                if (response.ok) {
+                    alert('Meeting started!');
+                    // Initialize WebRTC here
+                } else {
+                    alert('Error starting meeting');
+                }
+            } catch (error) {
+                console.error('Error starting meeting:', error);
+            }
+        }
+
+        // Join meeting
+        async function joinMeeting() {
+            try {
+                const participantName = prompt('Enter your name:');
+                const password = prompt('Enter meeting password (if required):');
+                
+                const response = await fetch('/video-calls/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        roomId: roomId, 
+                        participantName: participantName,
+                        password: password 
+                    })
+                });
+                
+                if (response.ok) {
+                    // Send WebSocket notification
+                    stompClient.send("/app/meeting.join", {}, JSON.stringify({
+                        roomId: roomId,
+                        participantId: currentUser,
+                        participantName: participantName
+                    }));
+                    
+                    alert('Join request sent! Waiting for host approval...');
+                } else {
+                    const error = await response.text();
+                    alert('Error joining meeting: ' + error);
+                }
+            } catch (error) {
+                console.error('Error joining meeting:', error);
+            }
+        }
+
+        // Show join request (for mentors)
+        function showJoinRequest(data) {
+            const waitingDiv = document.getElementById('waiting-participants');
+            const participantDiv = document.createElement('div');
+            participantDiv.className = 'participant-item';
+            participantDiv.innerHTML = `
+                <span>${data.participantName} wants to join</span>
+                <button class="btn btn-success" onclick="approveParticipant('${data.participantId}')">Approve</button>
+                <button class="btn btn-danger" onclick="rejectParticipant('${data.participantId}')">Reject</button>
+            `;
+            waitingDiv.appendChild(participantDiv);
+        }
+
+        // Approve participant
+        async function approveParticipant(participantId) {
+            try {
+                const response = await fetch('/video-calls/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId: roomId, participantId: participantId })
+                });
+                
+                if (response.ok) {
+                    // Send WebSocket notification
+                    stompClient.send("/app/meeting.approve", {}, JSON.stringify({
+                        roomId: roomId,
+                        participantId: participantId
+                    }));
+                    
+                    // Remove from waiting list
+                    loadWaitingParticipants();
+                    loadMeetingDetails();
+                }
+            } catch (error) {
+                console.error('Error approving participant:', error);
+            }
+        }
+
+        // Reject participant
+        async function rejectParticipant(participantId) {
+            try {
+                const response = await fetch('/video-calls/reject', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId: roomId, participantId: participantId })
+                });
+                
+                if (response.ok) {
+                    // Send WebSocket notification
+                    stompClient.send("/app/meeting.reject", {}, JSON.stringify({
+                        roomId: roomId,
+                        participantId: participantId
+                    }));
+                    
+                    loadWaitingParticipants();
+                }
+            } catch (error) {
+                console.error('Error rejecting participant:', error);
+            }
+        }
+
+        // Handle approval response
+        function handleApprovalResponse(data) {
+            if (data.status === 'approved') {
+                alert('You have been approved to join the meeting!');
+                // Initialize WebRTC connection here
+            } else if (data.status === 'rejected') {
+                alert('Your request to join was rejected.');
+            }
+        }
+
+        // Load waiting participants
+        async function loadWaitingParticipants() {
+            try {
+                const response = await fetch(`/video-calls/waiting/${roomId}`);
+                const waitingParticipants = await response.json();
+                
+                const waitingDiv = document.getElementById('waiting-participants');
+                waitingDiv.innerHTML = '';
+                
+                waitingParticipants.forEach(participantId => {
+                    const participantDiv = document.createElement('div');
+                    participantDiv.className = 'participant-item';
+                    participantDiv.innerHTML = `
+                        <span>User ${participantId} is waiting</span>
+                        <button class="btn btn-success" onclick="approveParticipant('${participantId}')">Approve</button>
+                        <button class="btn btn-danger" onclick="rejectParticipant('${participantId}')">Reject</button>
+                    `;
+                    waitingDiv.appendChild(participantDiv);
+                });
+            } catch (error) {
+                console.error('Error loading waiting participants:', error);
+            }
+        }
+
+        // Update participants list
+        function updateParticipantsList(participants) {
+            const participantsDiv = document.getElementById('participants');
+            participantsDiv.innerHTML = '';
+            
+            participants.forEach(participantId => {
+                const participantDiv = document.createElement('div');
+                participantDiv.className = 'participant-item';
+                participantDiv.textContent = `User ${participantId}`;
+                participantsDiv.appendChild(participantDiv);
+            });
+        }
+
+        // Copy join link
+        function copyJoinLink() {
+            const joinLinkInput = document.getElementById('join-link');
+            joinLinkInput.select();
+            document.execCommand('copy');
+            alert('Join link copied to clipboard!');
+        }
+
+        // Placeholder functions for video controls
+        function toggleCamera() {
+            alert('Camera toggle - implement with WebRTC');
+        }
+
+        function toggleMicrophone() {
+            alert('Microphone toggle - implement with WebRTC');
+        }
+
+        function endMeeting() {
+            if (confirm('Are you sure you want to end the meeting?')) {
+                // Implement end meeting logic
+                alert('Meeting ended');
+            }
+        }
+
+        // Initialize page
+        window.onload = function() {
+            if (roomId) {
+                connect();
+                loadMeetingDetails();
+            } else {
+                alert('No room ID provided');
+            }
+        };
+    </script>
+</body>
+</html>

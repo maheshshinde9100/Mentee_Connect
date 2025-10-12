@@ -167,4 +167,69 @@ public class VideoCallController {
         List<VideoCall> videoCalls = videoCallService.getVideoCallsForMentee(menteeId);
         return ResponseEntity.ok(videoCalls);
     }
+
+    // Approve participant to join (Mentor only)
+    @PostMapping("/approve")
+    @PreAuthorize("hasRole('MENTOR')")
+    public ResponseEntity<?> approveParticipant(@RequestBody Map<String, String> request) {
+        try {
+            String roomId = request.get("roomId");
+            String participantId = request.get("participantId");
+            
+            // Get the current authenticated mentor
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String mentorId = authentication.getName();
+            
+            VideoCall videoCall = videoCallService.approveParticipant(roomId, mentorId, participantId);
+            return ResponseEntity.ok(videoCall);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error approving participant: " + e.getMessage());
+        }
+    }
+
+    // Reject participant (Mentor only)
+    @PostMapping("/reject")
+    @PreAuthorize("hasRole('MENTOR')")
+    public ResponseEntity<?> rejectParticipant(@RequestBody Map<String, String> request) {
+        try {
+            String roomId = request.get("roomId");
+            String participantId = request.get("participantId");
+            
+            // Get the current authenticated mentor
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String mentorId = authentication.getName();
+            
+            VideoCall videoCall = videoCallService.rejectParticipant(roomId, mentorId, participantId);
+            return ResponseEntity.ok(videoCall);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error rejecting participant: " + e.getMessage());
+        }
+    }
+
+    // Get waiting participants (Mentor only)
+    @GetMapping("/waiting/{roomId}")
+    @PreAuthorize("hasRole('MENTOR')")
+    public ResponseEntity<?> getWaitingParticipants(@PathVariable String roomId) {
+        try {
+            // Get the current authenticated mentor
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String mentorId = authentication.getName();
+            
+            List<String> waitingParticipants = videoCallService.getWaitingParticipants(roomId, mentorId);
+            return ResponseEntity.ok(waitingParticipants);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error fetching waiting participants: " + e.getMessage());
+        }
+    }
+
+    // Generate shareable meeting link
+    @GetMapping("/link/{roomId}")
+    public ResponseEntity<?> getMeetingLink(@PathVariable String roomId) {
+        try {
+            VideoCall videoCall = videoCallService.getVideoCallByRoomId(roomId);
+            return ResponseEntity.ok(Map.of("joinLink", videoCall.getJoinLink(), "roomId", roomId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error generating meeting link: " + e.getMessage());
+        }
+    }
 }

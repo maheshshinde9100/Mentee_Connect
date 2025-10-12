@@ -102,8 +102,17 @@ public class VideoCallService {
             }
         }
         
-        // Add participant
-        videoCall.getParticipants().add(participantId);
+        // If meeting requires approval and participant is not the mentor, add to waiting room
+        if (videoCall.isRequiresApproval() && !participantId.equals(videoCall.getMentorId())) {
+            if (!videoCall.getWaitingParticipants().contains(participantId)) {
+                videoCall.getWaitingParticipants().add(participantId);
+                videoCall.setStatus("WAITING_FOR_HOST");
+            }
+        } else {
+            // Add participant directly
+            videoCall.getParticipants().add(participantId);
+        }
+        
         return videoCallRepository.save(videoCall);
     }
 
@@ -167,5 +176,62 @@ public class VideoCallService {
     // Get video calls that mentee has joined
     public List<VideoCall> getVideoCallsForMentee(String menteeId) {
         return videoCallRepository.findByParticipantsContaining(menteeId);
+    }
+    
+    // Approve participant to join (mentor only)
+    public VideoCall approveParticipant(String roomId, String mentorId, String participantId) {
+        Optional<VideoCall> optionalCall = videoCallRepository.findByRoomId(roomId);
+        
+        if (optionalCall.isEmpty()) {
+            throw new RuntimeException("Video call not found");
+        }
+        
+        VideoCall videoCall = optionalCall.get();
+        
+        if (!videoCall.getMentorId().equals(mentorId)) {
+            throw new RuntimeException("Only the mentor can approve participants");
+        }
+        
+        if (videoCall.getWaitingParticipants().contains(participantId)) {
+            videoCall.getWaitingParticipants().remove(participantId);
+            videoCall.getParticipants().add(participantId);
+        }
+        
+        return videoCallRepository.save(videoCall);
+    }
+    
+    // Reject participant (mentor only)
+    public VideoCall rejectParticipant(String roomId, String mentorId, String participantId) {
+        Optional<VideoCall> optionalCall = videoCallRepository.findByRoomId(roomId);
+        
+        if (optionalCall.isEmpty()) {
+            throw new RuntimeException("Video call not found");
+        }
+        
+        VideoCall videoCall = optionalCall.get();
+        
+        if (!videoCall.getMentorId().equals(mentorId)) {
+            throw new RuntimeException("Only the mentor can reject participants");
+        }
+        
+        videoCall.getWaitingParticipants().remove(participantId);
+        return videoCallRepository.save(videoCall);
+    }
+    
+    // Get waiting participants (mentor only)
+    public List<String> getWaitingParticipants(String roomId, String mentorId) {
+        Optional<VideoCall> optionalCall = videoCallRepository.findByRoomId(roomId);
+        
+        if (optionalCall.isEmpty()) {
+            throw new RuntimeException("Video call not found");
+        }
+        
+        VideoCall videoCall = optionalCall.get();
+        
+        if (!videoCall.getMentorId().equals(mentorId)) {
+            throw new RuntimeException("Only the mentor can view waiting participants");
+        }
+        
+        return videoCall.getWaitingParticipants();
     }
 }
