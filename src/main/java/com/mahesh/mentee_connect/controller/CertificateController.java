@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/certificates")
+@RequestMapping("/certificates")
 public class CertificateController {
 
     @Value("${app.upload.dir:uploads/certificates}")

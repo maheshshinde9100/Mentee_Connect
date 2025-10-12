@@ -84,16 +84,32 @@ public class VideoCallController {
         try {
             String roomId = request.get("roomId");
             String participantName = request.get("participantName");
+            String participantId = request.get("participantId");
             String password = request.get("password");
             
-            // Get the current authenticated user
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String participantId = authentication.getName();
+            // If participantId is not provided, get from authentication
+            if (participantId == null) {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                participantId = authentication.getName();
+            }
             
             VideoCall videoCall = videoCallService.joinVideoCall(roomId, participantId, participantName, password);
-            return ResponseEntity.ok(videoCall);
+            
+            // Return the expected response format
+            Map<String, Object> response = Map.of(
+                "success", true,
+                "message", "Join request sent successfully",
+                "status", "waiting_for_approval"
+            );
+            
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error joining video call: " + e.getMessage());
+            Map<String, Object> errorResponse = Map.of(
+                "success", false,
+                "message", "Error joining video call: " + e.getMessage(),
+                "status", "error"
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 
@@ -181,9 +197,20 @@ public class VideoCallController {
             String mentorId = authentication.getName();
             
             VideoCall videoCall = videoCallService.approveParticipant(roomId, mentorId, participantId);
-            return ResponseEntity.ok(videoCall);
+            
+            Map<String, Object> response = Map.of(
+                "success", true,
+                "message", "Participant approved successfully",
+                "videoCall", videoCall
+            );
+            
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error approving participant: " + e.getMessage());
+            Map<String, Object> errorResponse = Map.of(
+                "success", false,
+                "message", "Error approving participant: " + e.getMessage()
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 
@@ -230,6 +257,28 @@ public class VideoCallController {
             return ResponseEntity.ok(Map.of("joinLink", videoCall.getJoinLink(), "roomId", roomId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error generating meeting link: " + e.getMessage());
+        }
+    }
+
+    // Test WebSocket notification endpoint
+    @PostMapping("/test-websocket")
+    public ResponseEntity<?> testWebSocketNotification(@RequestBody Map<String, String> request) {
+        try {
+            String roomId = request.get("roomId");
+            String participantId = request.get("participantId");
+            String participantName = request.get("participantName");
+            
+            videoCallService.sendTestJoinRequest(roomId, participantId, participantName);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Test WebSocket notification sent"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "Error sending test notification: " + e.getMessage()
+            ));
         }
     }
 }

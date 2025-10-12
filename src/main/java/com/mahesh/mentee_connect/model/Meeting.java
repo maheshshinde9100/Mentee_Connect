@@ -34,6 +34,12 @@ public class Meeting {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
+    // New fields for enhanced meeting system
+    private String roomId;
+    private boolean passwordRequired;
+    private String password;
+    private String joinLink;
+    
     public enum MeetingStatus {
         SCHEDULED,
         IN_PROGRESS,

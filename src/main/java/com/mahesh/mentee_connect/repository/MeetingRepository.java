@@ -5,6 +5,7 @@ import com.mahesh.mentee_connect.model.Meeting;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface MeetingRepository extends MongoRepository<Meeting, String> {
     List<Meeting> findByMentorId(String mentorId);
@@ -15,4 +16,5 @@ public interface MeetingRepository extends MongoRepository<Meeting, String> {
     List<Meeting> findByStudentIdAndScheduledTimeBetween(String studentId, LocalDateTime start, LocalDateTime end);
     List<Meeting> findByMentorIdAndStatusAndScheduledTimeAfter(String mentorId, Meeting.MeetingStatus status, LocalDateTime time);
     List<Meeting> findByStudentIdAndStatusAndScheduledTimeAfter(String studentId, Meeting.MeetingStatus status, LocalDateTime time);
+    Optional<Meeting> findByRoomId(String roomId);
 }

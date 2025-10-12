@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 @RestController
-@RequestMapping("/notifications")
+@RequestMapping({"/notifications", "/api/notifications"})
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class NotificationController {
 

@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
-@RequestMapping("/students")
+@RequestMapping({"/students", "/api/students"})
 @Tag(name = "Students", description = "Student management APIs")
 public class StudentController {
 

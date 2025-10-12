@@ -7,11 +7,13 @@ import com.mahesh.mentee_connect.repository.VideoCallRepository;
 import com.mahesh.mentee_connect.repository.StudentRepository;
 import com.mahesh.mentee_connect.security.services.SecurityService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -19,6 +21,9 @@ public class VideoCallService {
     
     @Autowired
     private VideoCallRepository videoCallRepository;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     public VideoCall initializeCall(String meetingId, String mentorId) {
         VideoCall videoCall = new VideoCall();
@@ -107,6 +112,17 @@ public class VideoCallService {
             if (!videoCall.getWaitingParticipants().contains(participantId)) {
                 videoCall.getWaitingParticipants().add(participantId);
                 videoCall.setStatus("WAITING_FOR_HOST");
+                
+                // Send WebSocket notification to mentor about join request
+                Map<String, Object> joinRequestMessage = Map.of(
+                    "action", "join_request",
+                    "participantId", participantId,
+                    "participantName", participantName,
+                    "roomId", roomId,
+                    "timestamp", LocalDateTime.now().toString()
+                );
+                
+                messagingTemplate.convertAndSend("/topic/meeting/" + roomId + "/join-requests", joinRequestMessage);
             }
         } else {
             // Add participant directly
@@ -195,6 +211,17 @@ public class VideoCallService {
         if (videoCall.getWaitingParticipants().contains(participantId)) {
             videoCall.getWaitingParticipants().remove(participantId);
             videoCall.getParticipants().add(participantId);
+            
+            // Send WebSocket notification to participant about approval
+            Map<String, Object> approvalMessage = Map.of(
+                "status", "approved",
+                "roomId", roomId,
+                "meetingTitle", videoCall.getTitle(),
+                "message", "You have been approved to join the meeting",
+                "joinLink", videoCall.getJoinLink()
+            );
+            
+            messagingTemplate.convertAndSend("/queue/user/" + participantId + "/meeting-approval", approvalMessage);
         }
         
         return videoCallRepository.save(videoCall);
@@ -215,6 +242,17 @@ public class VideoCallService {
         }
         
         videoCall.getWaitingParticipants().remove(participantId);
+        
+        // Send WebSocket notification to participant about rejection
+        Map<String, Object> rejectionMessage = Map.of(
+            "status", "rejected",
+            "roomId", roomId,
+            "meetingTitle", videoCall.getTitle(),
+            "message", "Your request to join the meeting was rejected"
+        );
+        
+        messagingTemplate.convertAndSend("/queue/user/" + participantId + "/meeting-approval", rejectionMessage);
+        
         return videoCallRepository.save(videoCall);
     }
     
@@ -233,5 +271,18 @@ public class VideoCallService {
         }
         
         return videoCall.getWaitingParticipants();
+    }
+
+    // Test method to send WebSocket notification
+    public void sendTestJoinRequest(String roomId, String participantId, String participantName) {
+        Map<String, Object> joinRequestMessage = Map.of(
+            "action", "join_request",
+            "participantId", participantId,
+            "participantName", participantName,
+            "roomId", roomId,
+            "timestamp", LocalDateTime.now().toString()
+        );
+        
+        messagingTemplate.convertAndSend("/topic/meeting/" + roomId + "/join-requests", joinRequestMessage);
     }
 }

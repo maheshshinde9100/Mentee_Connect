@@ -11,7 +11,7 @@ import com.mahesh.mentee_connect.model.MeetingMetrics;
 import com.mahesh.mentee_connect.service.AnalyticsService;
 
 @RestController
-@RequestMapping("/api/admin/analytics")
+@RequestMapping("/admin/analytics")
 @PreAuthorize("hasRole('ADMIN')")
 public class AnalyticsController {
 
