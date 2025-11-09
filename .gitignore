@@ -31,8 +31,16 @@ build/
 
 ### VS Code ###
 .vscode/
-**./resources/application.properties**
+
+### Application Properties (contains sensitive credentials) ###
+src/main/resources/application.properties
+
+### Maven ###
 .mvn
 .settings
-.vscode
-.mvn
+src/main/resources/application.properties
+src/main/resources/application.properties
+MIGRATION_CHECKLIST.md
+MONGODB_MIGRATION.md
+README.md
+src/main/resources/application.properties
