@@ -95,7 +95,7 @@ public class UserProfileController {
 
             // Save the updated user
             User updatedUser = userManagementService.updateUser(currentUser.getId(), updateRequest);
-            logger.info("Profile updated successfully for user: {}", updatedUser.getEmail());
+            logger.info("Profile updated successfully");
 
             return ResponseEntity.ok(convertToUserResponse(updatedUser));
         } catch (Exception e) {

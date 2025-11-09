@@ -40,3 +40,4 @@ src/main/resources/application.properties
 .settings
 MIGRATION_CHECKLIST.md
 MONGODB_MIGRATION.md
+SECURITY_LOGGING_CLEANUP.md

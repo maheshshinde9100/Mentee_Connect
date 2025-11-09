@@ -51,11 +51,11 @@ public class AdminUserManagementController {
     @DeleteMapping("/{userId}")
     public ResponseEntity<?> deleteUser(@PathVariable String userId) {
         try {
-            logger.info("Attempting to delete user with ID: {}", userId);
+            logger.info("Attempting to delete user");
             userManagementService.deleteUser(userId);
             return ResponseEntity.ok().body(new MessageResponse("User deleted successfully"));
         } catch (Exception e) {
-            logger.error("Error deleting user with ID: {}", userId, e);
+            logger.error("Error deleting user", e);
             return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(new MessageResponse("Error deleting user: " + e.getMessage()));
@@ -67,11 +67,11 @@ public class AdminUserManagementController {
             @PathVariable String userId,
             @Valid @RequestBody UpdateProfileRequest updateRequest) {
         try {
-            logger.info("Attempting to update user with ID: {}", userId);
+            logger.info("Attempting to update user");
             User updatedUser = userManagementService.updateUser(userId, updateRequest);
             return ResponseEntity.ok(convertToUserResponse(updatedUser));
         } catch (Exception e) {
-            logger.error("Error updating user with ID: {}", userId, e);
+            logger.error("Error updating user", e);
             return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new MessageResponse("Error updating user: " + e.getMessage()));

@@ -182,7 +182,6 @@ public class StudentServiceImpl implements StudentService {
             return null;
         }
         String username = authentication.getName();
-        logger.debug("Getting current student for username: {}", username);
         return studentRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Student", "username", username));
     }

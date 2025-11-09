@@ -30,8 +30,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     @Transactional
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        logger.debug("Attempting to load user by username/email: {}", usernameOrEmail);
-        
         // Try to find by email first
         Optional<User> user = studentRepository.findByEmail(usernameOrEmail)
                 .map(student -> (User) student)
@@ -51,11 +49,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
 
         if (user.isEmpty()) {
-            logger.error("User not found with username/email: {}", usernameOrEmail);
-            throw new UsernameNotFoundException("User Not Found with username/email: " + usernameOrEmail);
+            throw new UsernameNotFoundException("User Not Found");
         }
 
-        logger.debug("User found with username/email: {}, role: {}", usernameOrEmail, user.get().getRole());
         return UserDetailsImpl.build(user.get());
     }
 } 
