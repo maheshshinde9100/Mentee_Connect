@@ -19,7 +19,7 @@ import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/profile")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "https://menteeconnect.vercel.app"})
 public class UserProfileController {
     private static final Logger logger = LoggerFactory.getLogger(UserProfileController.class);
 

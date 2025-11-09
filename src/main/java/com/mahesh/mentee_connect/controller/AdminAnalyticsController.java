@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 @RestController
 @RequestMapping("/admin/analytics")
 @PreAuthorize("hasRole('ROLE_ADMIN')")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "https://menteeconnect.vercel.app"})
 public class AdminAnalyticsController {
     private static final Logger logger = LoggerFactory.getLogger(AdminAnalyticsController.class);
 

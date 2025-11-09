@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 @RestController
 @RequestMapping("/admin/users")
 @PreAuthorize("hasRole('ROLE_ADMIN')")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "https://menteeconnect.vercel.app"})
 public class AdminUserManagementController {
     private static final Logger logger = LoggerFactory.getLogger(AdminUserManagementController.class);
 
