@@ -2,12 +2,10 @@ package com.mahesh.mentee_connect.service.impl;
 
 import com.mahesh.mentee_connect.model.Mentor;
 import com.mahesh.mentee_connect.model.Student;
-import com.mahesh.mentee_connect.model.Meeting;
 import com.mahesh.mentee_connect.dto.MenteeUpdateRequest;
 import com.mahesh.mentee_connect.dto.StudentMentorDTO;
 import com.mahesh.mentee_connect.repository.MentorRepository;
 import com.mahesh.mentee_connect.repository.StudentRepository;
-import com.mahesh.mentee_connect.repository.MeetingRepository;
 import com.mahesh.mentee_connect.service.MentorService;
 import com.mahesh.mentee_connect.exception.ResourceNotFoundException;
 import com.mahesh.mentee_connect.exception.UnauthorizedException;
@@ -28,9 +26,6 @@ public class MentorServiceImpl implements MentorService {
     
     @Autowired
     private StudentRepository studentRepository;
-    
-    @Autowired
-    private MeetingRepository meetingRepository;
     
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -105,12 +100,6 @@ public class MentorServiceImpl implements MentorService {
                     student.getCgpa(),
                     mentorId))
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Meeting> getMentorMeetings(String mentorId) {
-        return meetingRepository.findByMentorId(mentorId);
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.mahesh.mentee_connect.dto;
 
-import com.mahesh.mentee_connect.model.Meeting;
 import com.mahesh.mentee_connect.model.User.UserRole;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,9 +24,6 @@ public class MentorDTO {
     
     // Only include student IDs, not the entire student objects
     private List<String> assignedStudentIds = new ArrayList<>();
-    
-    // Meetings could be summarized or omitted depending on requirements
-    private List<Meeting> scheduledMeetings = new ArrayList<>();
     
     private int maxStudents;
 } 

@@ -28,6 +28,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        // Skip JWT authentication for WebSocket upgrade requests
+        String connection = request.getHeader("Connection");
+        String upgrade = request.getHeader("Upgrade");
+        if (connection != null && connection.toLowerCase().contains("upgrade") && 
+            upgrade != null && upgrade.toLowerCase().equals("websocket")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         try {
             String jwt = parseJwt(request);
             String requestURI = request.getRequestURI();

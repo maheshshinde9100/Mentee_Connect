@@ -82,13 +82,17 @@ public class SecurityConfig {
                     .requestMatchers("/api/students/me/**").hasRole("STUDENT")
                     .requestMatchers("/api/students/**").hasRole("STUDENT")
                     .requestMatchers("/batches/**").hasRole("ADMIN")
-                    .requestMatchers("/meetings/**").authenticated()
-                    .requestMatchers("/video-calls/**").hasAnyRole("MENTOR", "STUDENT")
-                    .requestMatchers("/chat/**").authenticated()
+                    // WebSocket endpoints - must be before anyRequest()
+                    .requestMatchers("/signal/**").permitAll()
+                    .requestMatchers("/api/signal/**").permitAll()
                     .requestMatchers("/ws/**").permitAll()
+                    .requestMatchers("/chat/**").authenticated()
                     .anyRequest().authenticated()
             );
 
+        // Allow WebSocket handshake requests
+        http.headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
+        
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 

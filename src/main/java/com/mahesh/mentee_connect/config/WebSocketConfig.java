@@ -1,31 +1,32 @@
 package com.mahesh.mentee_connect.config;
 
 import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
-import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import com.mahesh.mentee_connect.websocket.SignalingHandler;
 
 @Configuration
-@EnableWebSocketMessageBroker
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
 
-    @Override
-    public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic", "/queue");
-        config.setApplicationDestinationPrefixes("/app");
+    private final SignalingHandler signalingHandler;
+
+    public WebSocketConfig(SignalingHandler signalingHandler) {
+        this.signalingHandler = signalingHandler;
     }
 
     @Override
-    public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        // Spring WebSocket endpoints registered via WebSocketConfigurer are at ROOT level
+        // They are NOT affected by server.servlet.context-path=/api
+        // Register at /signal - accessible at ws://localhost:8080/signal
+        // Also register at /api/signal for compatibility
+        registry.addHandler(signalingHandler, "/signal")
                 .setAllowedOrigins("http://localhost:3000", "https://menteeconnect.vercel.app")
-                .withSockJS();
-        
-        // Also add endpoint without SockJS for direct WebSocket connections
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
-                .setAllowedOrigins("http://localhost:3000", "https://menteeconnect.vercel.app");
+                .setAllowedOriginPatterns("*");
+        registry.addHandler(signalingHandler, "/api/signal")
+                .setAllowedOrigins("http://localhost:3000", "https://menteeconnect.vercel.app")
+                .setAllowedOriginPatterns("*");
     }
 }

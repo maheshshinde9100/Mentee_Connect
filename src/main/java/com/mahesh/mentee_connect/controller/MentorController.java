@@ -2,7 +2,6 @@ package com.mahesh.mentee_connect.controller;
 
 import com.mahesh.mentee_connect.model.Mentor;
 import com.mahesh.mentee_connect.model.Student;
-import com.mahesh.mentee_connect.model.Meeting;
 import com.mahesh.mentee_connect.service.MentorService;
 import com.mahesh.mentee_connect.dto.MenteeUpdateRequest;
 import com.mahesh.mentee_connect.dto.StudentMentorDTO;
@@ -66,13 +65,6 @@ public class MentorController {
     @Operation(summary = "Get mentor's students", description = "Get all students assigned to a mentor (Admin or self)")
     public ResponseEntity<List<StudentMentorDTO>> getMentorStudents(@PathVariable String id) {
         return ResponseEntity.ok(mentorService.getMentorStudents(id));
-    }
-
-    @GetMapping("/{id}/meetings")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isCurrentUser(#id)")
-    @Operation(summary = "Get mentor meetings", description = "Get all meetings for a mentor (Admin or self)")
-    public ResponseEntity<List<Meeting>> getMentorMeetings(@PathVariable String id) {
-        return ResponseEntity.ok(mentorService.getMentorMeetings(id));
     }
 
     @GetMapping("/me")

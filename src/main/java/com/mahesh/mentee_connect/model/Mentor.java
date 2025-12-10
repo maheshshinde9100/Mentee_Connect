@@ -23,9 +23,6 @@ public class Mentor extends User {
     @DBRef(lazy = true)
     private List<Student> assignedStudents = new ArrayList<>();
     
-    @DBRef(lazy = true)
-    private List<Meeting> scheduledMeetings = new ArrayList<>();
-    
     private int maxStudents = 10;
     
     public Mentor(String username, String email, String password, String firstName, 

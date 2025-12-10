@@ -2,14 +2,12 @@ package com.mahesh.mentee_connect.service.impl;
 
 import com.mahesh.mentee_connect.model.Student;
 import com.mahesh.mentee_connect.model.Mentor;
-import com.mahesh.mentee_connect.model.Meeting;
 import com.mahesh.mentee_connect.model.MenteeTask;
 import com.mahesh.mentee_connect.model.MenteeAttendance;
 import com.mahesh.mentee_connect.dto.MentorResponse;
 import com.mahesh.mentee_connect.dto.ProgressReport;
 import com.mahesh.mentee_connect.repository.StudentRepository;
 import com.mahesh.mentee_connect.repository.MentorRepository;
-import com.mahesh.mentee_connect.repository.MeetingRepository;
 import com.mahesh.mentee_connect.repository.MenteeTaskRepository;
 import com.mahesh.mentee_connect.repository.MenteeAttendanceRepository;
 import com.mahesh.mentee_connect.service.StudentService;
@@ -54,9 +52,6 @@ public class StudentServiceImpl implements StudentService {
     
     @Autowired
     private MentorRepository mentorRepository;
-    
-    @Autowired
-    private MeetingRepository meetingRepository;
     
     @Autowired
     private MenteeTaskRepository menteeTaskRepository;
@@ -125,12 +120,6 @@ public class StudentServiceImpl implements StudentService {
     @Transactional(readOnly = true)
     public List<Student> getStudentsByMentorId(String mentorId) {
         return studentRepository.findByAssignedMentorId(mentorId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Meeting> getStudentMeetings(String studentId) {
-        return meetingRepository.findByStudentId(studentId);
     }
 
     @Override

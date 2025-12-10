@@ -4,7 +4,6 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
-import com.mahesh.mentee_connect.model.Meeting;
 import com.mahesh.mentee_connect.model.Student;
 import com.mahesh.mentee_connect.model.Mentor;
 import com.mahesh.mentee_connect.dto.MentorResponse;
@@ -29,7 +28,6 @@ public interface StudentService {
     List<Student> getAllStudents();
     Page<Student> getAllStudentsPageable(int page, int size);
     List<Student> getStudentsByMentorId(String mentorId);
-    List<Meeting> getStudentMeetings(String id);
     Student assignMentorToStudent(String studentId, String mentorId);
     List<Student> assignMentorToMultipleStudents(List<String> studentIds, String mentorId);
     Student updateStudentProgress(String id, double attendance, double cgpa);

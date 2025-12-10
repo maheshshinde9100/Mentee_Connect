@@ -11,9 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.mahesh.mentee_connect.dto.*;
-import com.mahesh.mentee_connect.model.Meeting;
 import com.mahesh.mentee_connect.model.Student;
-import com.mahesh.mentee_connect.service.MeetingService;
 import com.mahesh.mentee_connect.service.StudentService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,9 +31,6 @@ public class StudentController {
     @Autowired
     private StudentService studentService;
     
-    @Autowired
-    private MeetingService meetingService;
-
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create student", description = "Create a new student (Admin only)")
@@ -79,13 +74,6 @@ public class StudentController {
         return ResponseEntity.ok(studentService.getStudentsByMentorId(mentorId));
     }
 
-    @GetMapping("/{id}/meetings")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('MENTOR') or @securityService.isCurrentUser(#id)")
-    @Operation(summary = "Get student meetings", description = "Get all meetings for a student (Admin, Mentor, or self)")
-    public ResponseEntity<List<Meeting>> getStudentMeetings(@PathVariable String id) {
-        return ResponseEntity.ok(studentService.getStudentMeetings(id));
-    }
-
     @PutMapping("/{studentId}/mentor/{mentorId}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Assign mentor", description = "Assign a mentor to a student (Admin only)")
@@ -116,30 +104,6 @@ public class StudentController {
     public ResponseEntity<MentorResponse> getMyMentor(Authentication authentication) {
         String studentId = ((Student) studentService.getCurrentStudent(authentication)).getId();
         return ResponseEntity.ok(studentService.getMyMentor(studentId));
-    }
-
-    @GetMapping("/meetings/upcoming")
-    public ResponseEntity<List<Meeting>> getUpcomingMeetings(Authentication authentication) {
-        String studentId = ((Student) studentService.getCurrentStudent(authentication)).getId();
-        return ResponseEntity.ok(meetingService.getUpcomingMeetingsByStudent(studentId));
-    }
-
-    @GetMapping("/meetings/{meetingId}")
-    public ResponseEntity<Meeting> getMeetingDetails(
-            @PathVariable String meetingId,
-            Authentication authentication) {
-        String studentId = ((Student) studentService.getCurrentStudent(authentication)).getId();
-        return ResponseEntity.ok(meetingService.getMeetingDetailsForStudent(meetingId, studentId));
-    }
-
-    @PostMapping("/meetings/{meetingId}/request-changes")
-    public ResponseEntity<MeetingChangeRequest> requestMeetingChanges(
-            @PathVariable String meetingId,
-            @RequestBody MeetingChangeRequest request,
-            Authentication authentication) {
-        String studentId = ((Student) studentService.getCurrentStudent(authentication)).getId();
-        return ResponseEntity.ok(
-                meetingService.requestMeetingChanges(meetingId, studentId, request));
     }
 
     @GetMapping("/progress-reports")

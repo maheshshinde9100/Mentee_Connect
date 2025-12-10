@@ -27,9 +27,6 @@ public class Student extends User {
     @DBRef
     private Mentor assignedMentor;
     
-    @DBRef(lazy = true)
-    private List<Meeting> meetings = new ArrayList<>();
-    
     private double attendance;
     private double cgpa;
     

@@ -7,7 +7,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import com.mahesh.mentee_connect.model.MentorEngagementStats;
 import com.mahesh.mentee_connect.model.StudentProgressStats;
-import com.mahesh.mentee_connect.model.MeetingMetrics;
 import com.mahesh.mentee_connect.service.AnalyticsService;
 
 @RestController
@@ -28,9 +27,4 @@ public class AnalyticsController {
         return ResponseEntity.ok(analyticsService.getStudentProgressStats());
     }
 
-    @GetMapping("/meeting-metrics")
-    public ResponseEntity<MeetingMetrics> getMeetingMetrics(
-            @RequestParam(required = false) String timeRange) {
-        return ResponseEntity.ok(analyticsService.getMeetingMetrics(timeRange));
-    }
 }

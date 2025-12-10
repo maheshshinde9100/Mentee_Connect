@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.time.Duration;
 
 @Service
 public class AnalyticsServiceImpl implements AnalyticsService {
@@ -23,9 +22,6 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Autowired
     private AdminRepository adminRepository;
 
-    @Autowired
-    private MeetingRepository meetingRepository;
-
     @Override
     @Transactional(readOnly = true)
     public MentorEngagementStats getMentorEngagementStats() {
@@ -35,7 +31,6 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .map(mentor -> new MentorStats(
                     mentor.getId(),
                     mentor.getFirstName() + " " + mentor.getLastName(),
-                    meetingRepository.findByMentorId(mentor.getId()),
                     studentRepository.findByAssignedMentorId(mentor.getId())
                 ))
                 .collect(Collectors.toList())
@@ -49,40 +44,11 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             .map(student -> new StudentProgressStats(
                 student.getId(),
                 student.getFirstName() + " " + student.getLastName(),
-                meetingRepository.findByStudentId(student.getId()),
                 student.getAssignedMentor() != null ? "ACTIVE" : "INACTIVE",
                 student.getAttendance(),
                 student.getCgpa()
             ))
             .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public MeetingMetrics getMeetingMetrics(String timeRange) {
-        List<Meeting> meetings = meetingRepository.findAll();
-        
-        int total = meetings.size();
-        int completed = (int) meetings.stream()
-            .filter(m -> m.getStatus() == Meeting.MeetingStatus.COMPLETED)
-            .count();
-        
-        Map<String, Integer> perMentor = meetings.stream()
-            .collect(Collectors.groupingBy(
-                m -> m.getMentor().getId(),
-                Collectors.collectingAndThen(Collectors.toList(), List::size)
-            ));
-            
-        return new MeetingMetrics(
-            total,
-            completed,
-            total - completed,
-            perMentor,
-            meetings.stream().mapToLong(m -> 
-                m.getEndTime() != null && m.getScheduledTime() != null ? 
-                Duration.between(m.getScheduledTime(), m.getEndTime()).toMinutes() : 0
-            ).average().orElse(0.0)
-        );
     }
 
     @Override

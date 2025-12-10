@@ -39,9 +39,6 @@ public class MentorConverter {
                 .collect(Collectors.toList());
             dto.setAssignedStudentIds(studentIds);
         }
-        
-        dto.setScheduledMeetings(mentor.getScheduledMeetings());
-        
         return dto;
     }
 } 
