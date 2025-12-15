@@ -34,6 +34,7 @@ public class MentorServiceImpl implements MentorService {
     @Transactional
     public Mentor createMentor(Mentor mentor) {
         mentor.setPassword(passwordEncoder.encode(mentor.getPassword()));
+        mentor.setRole(com.mahesh.mentee_connect.model.User.UserRole.ROLE_MENTOR);
         return mentorRepository.save(mentor);
     }
 

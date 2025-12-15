@@ -72,6 +72,7 @@ public class StudentServiceImpl implements StudentService {
     @Transactional
     public Student createStudent(Student student) {
         student.setPassword(passwordEncoder.encode(student.getPassword()));
+        student.setRole(com.mahesh.mentee_connect.model.User.UserRole.ROLE_STUDENT);
         return studentRepository.save(student);
     }
 
