@@ -83,6 +83,13 @@ public class StudentController {
         return ResponseEntity.ok(studentService.assignMentorToStudent(studentId, mentorId));
     }
 
+    @DeleteMapping("/{studentId}/mentor")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Remove mentor", description = "Remove assigned mentor from a student (Admin only)")
+    public ResponseEntity<Student> removeMentorFromStudent(@PathVariable String studentId) {
+        return ResponseEntity.ok(studentService.removeMentorFromStudent(studentId));
+    }
+
     @PutMapping("/{id}/progress")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MENTOR')")
     @Operation(summary = "Update progress", description = "Update student's progress (Admin or Mentor)")

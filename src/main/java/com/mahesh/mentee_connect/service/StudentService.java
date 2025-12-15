@@ -30,6 +30,7 @@ public interface StudentService {
     List<Student> getStudentsByMentorId(String mentorId);
     Student assignMentorToStudent(String studentId, String mentorId);
     List<Student> assignMentorToMultipleStudents(List<String> studentIds, String mentorId);
+    Student removeMentorFromStudent(String studentId);
     Student updateStudentProgress(String id, double attendance, double cgpa);
     Student getCurrentStudent();
     Student getCurrentStudent(Authentication authentication);

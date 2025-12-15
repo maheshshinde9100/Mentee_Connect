@@ -19,5 +19,6 @@ public class StudentDTO {
     private String branch;
     private Double cgpa;
     private String mentorId;
+    private String mentorName;
     private String phoneNumber;
 } 

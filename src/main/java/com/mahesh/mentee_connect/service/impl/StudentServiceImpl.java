@@ -282,6 +282,7 @@ public class StudentServiceImpl implements StudentService {
                 .branch(student.getCourse())
                 .cgpa(student.getCgpa())
                 .mentorId(student.getAssignedMentor() != null ? student.getAssignedMentor().getId() : null)
+                .mentorName(student.getAssignedMentor() != null ? student.getAssignedMentor().getFirstName() + " " + student.getAssignedMentor().getLastName() : null)
                 .phoneNumber(student.getPhoneNumber())
                 .build();
     }
@@ -322,6 +323,25 @@ public class StudentServiceImpl implements StudentService {
         mentorRepository.save(mentor);
         
         return updatedStudents;
+    }
+
+    @Override
+    @Transactional
+    public Student removeMentorFromStudent(String studentId) {
+        Student student = getStudentById(studentId);
+        Mentor mentor = student.getAssignedMentor();
+        
+        if (mentor != null) {
+            // Remove student from mentor's list
+            mentor.getAssignedStudents().removeIf(s -> s.getId().equals(studentId));
+            mentorRepository.save(mentor);
+            
+            // Remove mentor from student
+            student.setAssignedMentor(null);
+            student = studentRepository.save(student);
+        }
+        
+        return student;
     }
 
     @Override
