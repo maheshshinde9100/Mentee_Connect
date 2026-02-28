@@ -7,11 +7,16 @@
   <img src="https://img.shields.io/badge/WebRTC-Video_Call-FF6B6B?style=for-the-badge&logo=webrtc&logoColor=white" />
   <img src="https://img.shields.io/badge/WebSocket-Real_Time-FFCA28?style=for-the-badge&logo=websocket&logoColor=black" />
   <img src="https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+  <a href="https://menteeconnect.vercel.app/" target="_blank">
+    <img src="https://img.shields.io/badge/🚀 Live-menteeconnect.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" />
+  </a>
 </div>
 
 <div align="center">
   <h3>🎯 Backend for Role-Based Mentor-Student Management System</h3>
   <p><em>Secure, scalable Spring Boot backend powering an academic mentorship platform with real-time video calling, JWT authentication, and role-based access control.</em></p>
+  <br/>
+  <strong>🌐 <a href="https://menteeconnect.vercel.app/">menteeconnect.vercel.app</a></strong>
 </div>
 
 ---
@@ -19,9 +24,9 @@
 ## ✨ Features
 
 - **Role-Based JWT Authentication** — Secure login for Admin, Mentor, and Student roles
-- **📹 WebRTC Video Call Signaling** — Backend signaling server enabling peer-to-peer video calls between mentors and mentees
-- **🔔 Real-Time Notifications** — WebSocket-based incoming call alerts delivered instantly to mentees
-- **📋 Meeting History APIs** — Stores and exposes video call records; mentors access their own history, admins can view all records platform-wide
+- **WebRTC Video Call Signaling** — Backend signaling server enabling peer-to-peer video calls between mentors and mentees
+- **Real-Time Notifications** — WebSocket-based incoming call alerts delivered instantly to mentees
+- **Meeting History APIs** — Stores and exposes video call records; mentors access their own history, admins can view all records platform-wide
 - **CRUD APIs** — Full user, batch, mentor, and student management
 - **Goal & Certificate Tracking** — Assign goals and track student achievements
 - **File Upload Support** — Profile photos and resource sharing
@@ -47,7 +52,7 @@
 
 ---
 
-## 📹 Video Call — Backend Architecture
+## Video Call — Backend Architecture
 
 The backend acts as a **WebRTC signaling server**, coordinating the peer connection setup between mentor and mentee.
 
