@@ -19,7 +19,7 @@ import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/profile")
-@CrossOrigin(origins = {"http://localhost:3000", "https://menteeconnect.vercel.app"})
+@CrossOrigin(origins = "*", maxAge = 3600)
 public class UserProfileController {
     private static final Logger logger = LoggerFactory.getLogger(UserProfileController.class);
 

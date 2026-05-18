@@ -29,14 +29,14 @@ public class SignalingHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        System.out.println("WS: Connection attempt from URI: " + session.getUri());
+        // System.out.println("WS: Connection attempt from URI: " + session.getUri());
         String userId = extractUserId(session.getUri());
         if (userId != null && !userId.isEmpty()) {
             SESSIONS.put(userId, session);
             session.getAttributes().put("userId", userId);
-            System.out.println("WS connected: " + userId + " (Total sessions: " + SESSIONS.size() + ")");
+            // System.out.println("WS connected: " + userId + " (Total sessions: " + SESSIONS.size() + ")");
         } else {
-            System.out.println("WS connection rejected: missing or empty userId");
+            // System.out.println("WS connection rejected: missing or empty userId");
             try {
                 session.close();
             } catch (IOException e) {
@@ -79,7 +79,7 @@ public class SignalingHandler extends TextWebSocketHandler {
         String userId = (String) session.getAttributes().get("userId");
         if (userId != null) {
             SESSIONS.remove(userId);
-            System.out.println("WS disconnected: " + userId);
+            // System.out.println("WS disconnected: " + userId);
         }
     }
 
@@ -100,7 +100,7 @@ public class SignalingHandler extends TextWebSocketHandler {
 
     private String extractUserId(URI uri) {
         if (uri == null || uri.getQuery() == null) {
-            System.out.println("WS: URI or query is null");
+            // System.out.println("WS: URI or query is null");
             return null;
         }
         try {
@@ -118,7 +118,7 @@ public class SignalingHandler extends TextWebSocketHandler {
                             }
                     ));
             String userId = params.get("userId");
-            System.out.println("WS: Extracted userId from query: " + userId);
+            // System.out.println("WS: Extracted userId from query: " + userId);
             return userId;
         } catch (Exception e) {
             System.err.println("WS: Error extracting userId: " + e.getMessage());
