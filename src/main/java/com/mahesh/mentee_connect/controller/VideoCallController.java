@@ -17,7 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping
-@CrossOrigin(origins = {"http://localhost:3000", "https://menteeconnect.vercel.app"})
+@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Video Calls", description = "Video call history APIs")
 public class VideoCallController {
 
