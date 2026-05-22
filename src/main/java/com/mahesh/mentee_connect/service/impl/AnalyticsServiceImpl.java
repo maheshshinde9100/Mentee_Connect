@@ -5,6 +5,7 @@ import com.mahesh.mentee_connect.repository.*;
 import com.mahesh.mentee_connect.service.AnalyticsService;
 import com.mahesh.mentee_connect.payload.response.AnalyticsResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -24,6 +25,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "analytics", key = "'mentorEngagement'")
     public MentorEngagementStats getMentorEngagementStats() {
         List<Mentor> mentors = mentorRepository.findAll();
         return new MentorEngagementStats(
@@ -39,6 +41,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "analytics", key = "'studentProgress'")
     public List<StudentProgressStats> getStudentProgressStats() {
         return studentRepository.findAll().stream()
             .map(student -> new StudentProgressStats(
@@ -52,6 +55,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
+    @Cacheable(value = "analytics", key = "'userCount'")
     public AnalyticsResponse.UserCountStats getUserCountStats() {
         List<Student> students = studentRepository.findAll();
         List<Mentor> mentors = mentorRepository.findAll();
@@ -73,6 +77,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
+    @Cacheable(value = "analytics", key = "'department'")
     public AnalyticsResponse.DepartmentStats getDepartmentStats() {
         List<Student> students = studentRepository.findAll();
         List<Mentor> mentors = mentorRepository.findAll();
@@ -114,6 +119,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
+    @Cacheable(value = "analytics", key = "'student'")
     public AnalyticsResponse.StudentStats getStudentStats() {
         List<Student> students = studentRepository.findAll();
 
@@ -162,6 +168,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
+    @Cacheable(value = "analytics", key = "'mentor'")
     public AnalyticsResponse.MentorStats getMentorStats() {
         List<Mentor> mentors = mentorRepository.findAll();
 
@@ -201,6 +208,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
+    @Cacheable(value = "analytics", key = "'allAnalytics'")
     public AnalyticsResponse getAllAnalytics() {
         return AnalyticsResponse.builder()
                 .userCounts(getUserCountStats())

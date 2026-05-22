@@ -27,7 +27,7 @@ import com.mahesh.mentee_connect.payload.request.BatchMentorsAssignRequest;
 
 @RestController
 @RequestMapping("/admin/batches")
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Batches", description = "Batch management APIs")
 public class BatchController {
 

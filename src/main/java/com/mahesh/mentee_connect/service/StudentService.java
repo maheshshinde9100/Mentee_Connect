@@ -40,6 +40,8 @@ public interface StudentService {
     MentorResponse getMyMentor(String studentId);
     List<ProgressReport> getProgressReports(String studentId);
     List<StudentDTO> getAllStudentsAsDTO();
+    Page<StudentDTO> getAllStudentsAsDTOPageable(int page, int size);
+    Page<StudentDTO> getStudentsByMentorIdPageable(String mentorId, int page, int size);
     
     // Certificate management methods
     CertificateDTO uploadCertificate(String studentId, MultipartFile file, String description);

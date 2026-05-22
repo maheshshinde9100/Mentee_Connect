@@ -57,9 +57,10 @@ public class AdminController {
     })
     @GetMapping("/students")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<List<StudentDTO>> getAllStudents() {
-        List<StudentDTO> students = studentService.getAllStudentsAsDTO();
-        return ResponseEntity.ok(students);
+    public ResponseEntity<Page<StudentDTO>> getAllStudents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(studentService.getAllStudentsAsDTOPageable(page, size));
     }
 
     @PutMapping("/students/{id}")

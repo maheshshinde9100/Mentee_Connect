@@ -3,6 +3,7 @@ package com.mahesh.mentee_connect.model;
 
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.index.Indexed;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,9 @@ import java.util.List;
 @NoArgsConstructor
 @Document(collection = "mentors")
 public class Mentor extends User {
+    @Indexed(unique = true)
     private String mentorId;
+    @Indexed
     private String department;
     private String specialization;
     private String designation;

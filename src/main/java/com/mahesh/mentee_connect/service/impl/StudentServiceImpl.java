@@ -41,6 +41,8 @@ import com.mahesh.mentee_connect.dto.StudentProfileDTO;
 import com.mahesh.mentee_connect.dto.StudentProfileResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 @Service
 public class StudentServiceImpl implements StudentService {
@@ -70,6 +72,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
     public Student createStudent(Student student) {
         student.setPassword(passwordEncoder.encode(student.getPassword()));
         student.setRole(com.mahesh.mentee_connect.model.User.UserRole.ROLE_STUDENT);
@@ -78,6 +81,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
     public Student updateStudent(String id, Student studentDetails) {
         Student student = getStudentById(id);
         student.setFirstName(studentDetails.getFirstName());
@@ -92,6 +96,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
     public void deleteStudent(String id) {
         Student student = getStudentById(id);
         studentRepository.delete(student);
@@ -99,6 +104,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "students", key = "#id")
     public Student getStudentById(String id) {
         return studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student", "id", id));
@@ -125,6 +131,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "analytics", "mentors"}, allEntries = true)
     public Student assignMentorToStudent(String studentId, String mentorId) {
         Student student = getStudentById(studentId);
         Mentor mentor = mentorRepository.findById(mentorId)
@@ -150,6 +157,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
     public Student updateStudentProgress(String studentId, double attendance, double cgpa) {
         Student student = getStudentById(studentId);
         student.setAttendance(attendance);
@@ -271,6 +279,20 @@ public class StudentServiceImpl implements StudentService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StudentDTO> getAllStudentsAsDTOPageable(int page, int size) {
+        return studentRepository.findAll(PageRequest.of(page, size))
+                .map(this::convertToDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<StudentDTO> getStudentsByMentorIdPageable(String mentorId, int page, int size) {
+        return studentRepository.findByAssignedMentorId(mentorId, PageRequest.of(page, size))
+                .map(this::convertToDTO);
+    }
+
     private StudentDTO convertToDTO(Student student) {
         return StudentDTO.builder()
                 .id(student.getId())
@@ -289,6 +311,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "analytics", "mentors"}, allEntries = true)
     public List<Student> assignMentorToMultipleStudents(List<String> studentIds, String mentorId) {
         Mentor mentor = mentorRepository.findById(mentorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor", "id", mentorId));
@@ -327,6 +350,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "analytics", "mentors"}, allEntries = true)
     public Student removeMentorFromStudent(String studentId) {
         Student student = getStudentById(studentId);
         Mentor mentor = student.getAssignedMentor();
@@ -447,12 +471,14 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Cacheable(value = "students", key = "'profile_' + #id")
     public StudentProfileDTO getStudentProfileById(String id) {
         Student student = getStudentById(id);
         return convertToProfileDTO(student);
     }
 
     @Override
+    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
     public StudentProfileDTO updateStudentProfile(String studentId, StudentUpdateDTO updateDTO) {
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + studentId));

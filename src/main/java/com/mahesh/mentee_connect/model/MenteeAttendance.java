@@ -2,6 +2,7 @@ package com.mahesh.mentee_connect.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -12,8 +13,11 @@ public class MenteeAttendance {
     
     @Id
     private String id;
+    @Indexed
     private String mentorId;
+    @Indexed
     private LocalDate date;
+    @Indexed
     private String batchId;
     private String sessionTopic;
     private Map<String, AttendanceStatus> studentAttendance = new HashMap<>(); // Map of studentId to attendance status
