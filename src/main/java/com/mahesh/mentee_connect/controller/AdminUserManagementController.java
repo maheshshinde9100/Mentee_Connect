@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/admin/users")
-@PreAuthorize("hasRole('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class AdminUserManagementController {
     private static final Logger logger = LoggerFactory.getLogger(AdminUserManagementController.class);

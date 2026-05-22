@@ -2,6 +2,7 @@ package com.mahesh.mentee_connect.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
@@ -13,7 +14,9 @@ public class MentorUpdate {
     private String id;
     private String title;
     private String content;
+    @Indexed
     private String mentorId;
+    @Indexed
     private List<String> studentIds = new ArrayList<>(); // List of students who should see this update
     private List<String> attachmentUrls = new ArrayList<>(); // URLs to any attachments (e.g., GitHub links)
     private boolean isImportant;

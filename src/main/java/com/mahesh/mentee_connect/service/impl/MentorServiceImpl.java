@@ -15,6 +15,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,6 +34,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"mentors", "analytics"}, allEntries = true)
     public Mentor createMentor(Mentor mentor) {
         mentor.setPassword(passwordEncoder.encode(mentor.getPassword()));
         mentor.setRole(com.mahesh.mentee_connect.model.User.UserRole.ROLE_MENTOR);
@@ -40,6 +43,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"mentors", "analytics"}, allEntries = true)
     public Mentor updateMentor(String id, Mentor mentorDetails) {
         Mentor mentor = getMentorById(id);
         mentor.setFirstName(mentorDetails.getFirstName());
@@ -56,6 +60,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"mentors", "analytics"}, allEntries = true)
     public void deleteMentor(String id) {
         Mentor mentor = getMentorById(id);
         mentorRepository.delete(mentor);
@@ -63,6 +68,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "mentors", key = "#id")
     public Mentor getMentorById(String id) {
         return mentorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor", "id", id));
@@ -140,6 +146,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "mentors", "analytics"}, allEntries = true)
     public Student updateStudentAsMentor(String mentorId, String studentId, MenteeUpdateRequest updateRequest) {
         // Verify mentor exists
         Mentor mentor = getMentorById(mentorId);
@@ -211,6 +218,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"students", "mentors", "analytics"}, allEntries = true)
     public StudentMentorDTO updateMenteeDetails(String mentorId, String studentId, MenteeUpdateRequest updateRequest) {
         // Verify mentor exists
         Mentor mentor = getMentorById(mentorId);

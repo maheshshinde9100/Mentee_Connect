@@ -2,6 +2,7 @@ package com.mahesh.mentee_connect.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -12,9 +13,13 @@ public class MenteeTask {
     private String id;
     private String title;
     private String description;
+    @Indexed
     private String mentorId;
+    @Indexed
     private String studentId;
+    @Indexed
     private LocalDate dueDate;
+    @Indexed
     private TaskStatus status;
     private String feedback;
     private LocalDateTime createdAt;

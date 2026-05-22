@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/admin/analytics")
-@PreAuthorize("hasRole('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class AdminAnalyticsController {
     private static final Logger logger = LoggerFactory.getLogger(AdminAnalyticsController.class);

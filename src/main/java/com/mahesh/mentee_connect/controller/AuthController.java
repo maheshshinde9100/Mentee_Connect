@@ -66,4 +66,12 @@ public class AuthController {
                     .body(new ErrorResponse("Token refresh failed"));
         }
     }
+
+    @GetMapping("/ping")
+    public ResponseEntity<java.util.Map<String, String>> ping() {
+        java.util.Map<String, String> response = new java.util.HashMap<>();
+        response.put("status", "UP");
+        response.put("message", "MenteeConnect backend is warm and running!");
+        return ResponseEntity.ok(response);
+    }
 }

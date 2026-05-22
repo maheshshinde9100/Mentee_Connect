@@ -62,16 +62,21 @@ public class StudentController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('MENTOR')")
-    @Operation(summary = "Get all students", description = "Get all students (Admin or Mentor)")
-    public ResponseEntity<List<Student>> getAllStudents() {
-        return ResponseEntity.ok(studentService.getAllStudents());
+    @Operation(summary = "Get all students", description = "Get paginated student list as lightweight DTOs (Admin or Mentor)")
+    public ResponseEntity<Page<StudentDTO>> getAllStudents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(studentService.getAllStudentsAsDTOPageable(page, size));
     }
 
     @GetMapping("/mentor/{mentorId}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isCurrentMentor(#mentorId)")
-    @Operation(summary = "Get mentor's students", description = "Get all students assigned to a mentor (Admin or mentor)")
-    public ResponseEntity<List<Student>> getStudentsByMentor(@PathVariable String mentorId) {
-        return ResponseEntity.ok(studentService.getStudentsByMentorId(mentorId));
+    @Operation(summary = "Get mentor's students", description = "Get paginated students assigned to a mentor (Admin or mentor)")
+    public ResponseEntity<Page<StudentDTO>> getStudentsByMentor(
+            @PathVariable String mentorId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(studentService.getStudentsByMentorIdPageable(mentorId, page, size));
     }
 
     @PutMapping("/{studentId}/mentor/{mentorId}")

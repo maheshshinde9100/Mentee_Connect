@@ -4,7 +4,10 @@ import com.mahesh.mentee_connect.model.Mentor;
 import com.mahesh.mentee_connect.model.Student;
 import com.mahesh.mentee_connect.service.MentorService;
 import com.mahesh.mentee_connect.dto.MenteeUpdateRequest;
+import com.mahesh.mentee_connect.dto.MentorDTO;
+import com.mahesh.mentee_connect.dto.MentorConverter;
 import com.mahesh.mentee_connect.dto.StudentMentorDTO;
+import org.springframework.data.domain.Page;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +26,9 @@ import java.util.List;
 public class MentorController {
     @Autowired
     private MentorService mentorService;
+
+    @Autowired
+    private MentorConverter mentorConverter;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -55,9 +61,12 @@ public class MentorController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Get all mentors", description = "Get all mentors (Admin only)")
-    public ResponseEntity<List<Mentor>> getAllMentors() {
-        return ResponseEntity.ok(mentorService.getAllMentors());
+    @Operation(summary = "Get all mentors", description = "Get paginated mentors as lightweight DTOs (Admin only)")
+    public ResponseEntity<Page<MentorDTO>> getAllMentors(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<Mentor> mentorsPage = mentorService.getAllMentors(page, size);
+        return ResponseEntity.ok(mentorsPage.map(mentorConverter::convertToDTO));
     }
 
     @GetMapping("/{id}/students")

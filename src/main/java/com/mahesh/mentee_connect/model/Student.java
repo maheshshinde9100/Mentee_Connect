@@ -3,6 +3,7 @@ package com.mahesh.mentee_connect.model;
 
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.index.Indexed;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -16,8 +17,10 @@ import java.util.List;
 @NoArgsConstructor
 @Document(collection = "students")
 public class Student extends User {
+    @Indexed(unique = true)
     private String studentId;
     private String course;
+    @Indexed
     private String batch;
     private int semester;
     private String department;

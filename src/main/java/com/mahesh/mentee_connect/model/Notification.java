@@ -2,6 +2,7 @@ package com.mahesh.mentee_connect.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 import java.time.LocalDateTime;
 
 @Document(collection = "notifications")
@@ -14,8 +15,11 @@ public class Notification {
     private String senderId;
     private String senderName;
     private LocalDateTime createdAt;
+    @Indexed
     private boolean isRead;
+    @Indexed
     private String recipientId;  // null for broadcast notifications
+    @Indexed
     private String recipientType; // "STUDENT", "MENTOR", or "ALL"
     
     public Notification() {
