@@ -44,7 +44,7 @@ public class SecurityConfig {
      * Android native apps do not use CORS; they authenticate with JWT Bearer tokens.
      * Example: http://localhost:3000,https://your-app.vercel.app
      */
-    @Value("${app.cors.allowed-origin-patterns:http://localhost:3000,http://127.0.0.1:3000}")
+    @Value("${app.cors.allowed-origin-patterns:http://localhost:3000,http://127.0.0.1:3000,https://menteeconnect.vercel.app}")
     private String corsAllowedOriginPatterns;
 
     @Bean
