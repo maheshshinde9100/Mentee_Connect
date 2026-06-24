@@ -1,41 +1,114 @@
-# 🚀 MenteeConnect — Backend
+# MenteeConnect — Backend
 
 <div align="center">
-  <img src="https://img.shields.io/badge/Spring_Boot-3.0+-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
-  <img src="https://img.shields.io/badge/MongoDB-6.0+-47A248?style=for-the-badge&logo=mongodb&logoColor=white" />
-  <img src="https://img.shields.io/badge/JWT-Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white" />
-  <img src="https://img.shields.io/badge/WebRTC-Video_Call-FF6B6B?style=for-the-badge&logo=webrtc&logoColor=white" />
-  <img src="https://img.shields.io/badge/WebSocket-Real_Time-FFCA28?style=for-the-badge&logo=websocket&logoColor=black" />
-  <img src="https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/Spring_Boot-3.0+-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot" />
+  <img src="https://img.shields.io/badge/MongoDB-6.0+-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" />
+  <img src="https://img.shields.io/badge/JWT-Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white" alt="JWT" />
+  <img src="https://img.shields.io/badge/WebRTC-Video_Call-FF6B6B?style=for-the-badge&logo=webrtc&logoColor=white" alt="WebRTC" />
+  <img src="https://img.shields.io/badge/WebSocket-Real_Time-FFCA28?style=for-the-badge&logo=websocket&logoColor=black" alt="WebSocket" />
+  <img src="https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
   <a href="https://menteeconnect.vercel.app/" target="_blank">
-    <img src="https://img.shields.io/badge/🚀 Live-menteeconnect.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" />
+    <img src="https://img.shields.io/badge/Live-menteeconnect.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Version" />
   </a>
 </div>
 
 <div align="center">
-  <h3>🎯 Backend for Role-Based Mentor-Student Management System</h3>
+  <h3>Backend for Role-Based Mentor-Student Management System</h3>
   <p><em>Secure, scalable Spring Boot backend powering an academic mentorship platform with real-time video calling, JWT authentication, and role-based access control.</em></p>
   <br/>
-  <strong>🌐 <a href="https://menteeconnect.vercel.app/">menteeconnect.vercel.app</a></strong>
+  <strong><a href="https://menteeconnect.vercel.app/">menteeconnect.vercel.app</a></strong>
 </div>
 
 ---
 
-## ✨ Features
+## Architecture Overview
 
-- **Role-Based JWT Authentication** — Secure login for Admin, Mentor, and Student roles
-- **WebRTC Video Call Signaling** — Backend signaling server enabling peer-to-peer video calls between mentors and mentees
-- **Real-Time Notifications** — WebSocket-based incoming call alerts delivered instantly to mentees
-- **Meeting History APIs** — Stores and exposes video call records; mentors access their own history, admins can view all records platform-wide
-- **CRUD APIs** — Full user, batch, mentor, and student management
-- **Goal & Certificate Tracking** — Assign goals and track student achievements
-- **File Upload Support** — Profile photos and resource sharing
-- **Password Security** — BCrypt hashing for all user credentials
-- **RESTful Design** — Clean JSON-based API architecture
+MenteeConnect utilizes a decoupled, high-performance architecture combining a robust, secure Spring Boot backend with a dynamic React frontend. 
+
+```mermaid
+flowchart TB
+    subgraph External_Clients ["External Clients"]
+        BrowserA["User Browser A <br/> Admin / Mentor / Student"]
+        BrowserB["User Browser B <br/> Mentor / Student"]
+    end
+
+    subgraph Docker_Network ["Docker Network: app-network"]
+        
+        subgraph Frontend_Container ["React Frontend Container port 80"]
+            direction TB
+            Router["React Router DOM"]
+            Context["Context API: Auth & Socket"]
+            Views["Role Dashboards: Admin / Mentor / Student"]
+            Services["Axios Interceptors & API Services"]
+            WebRTC["WebRTC Client & Media Devices"]
+            
+            Router --> Views
+            Views --> Context
+            Views --> Services
+            Views --> WebRTC
+        end
+
+        subgraph Backend_Container ["Spring Boot Backend Container port 8080"]
+            direction TB
+            SecFilter["Spring Security JWT Filter"]
+            RESTCtrl["REST API Controllers"]
+            WSEndpoint["WebSocket STOMP Broker /ws"]
+            
+            AuthBiz["Auth & User Service"]
+            AcadBiz["Batch, Task & Attendance Svc"]
+            VideoBiz["Video Call Signaling Svc"]
+            Analytics["Analytics & Notification Svc"]
+            
+            SecFilter --> RESTCtrl
+            RESTCtrl --> AuthBiz
+            RESTCtrl --> AcadBiz
+            RESTCtrl --> Analytics
+            WSEndpoint --> VideoBiz
+            WSEndpoint --> Analytics
+        end
+
+        subgraph Persistence_Layer ["Persistence & Storage Layer"]
+            DB[("MongoDB Database")]
+            FileSystem["Local Certificate/Upload Storage"]
+        end
+        
+    end
+
+    %% Client to Frontend
+    BrowserA -- "HTTP/React" --> Frontend_Container
+    BrowserB -- "HTTP/React" --> Frontend_Container
+    
+    %% Direct P2P
+    BrowserA <==>|"Direct P2P WebRTC Video/Audio"| BrowserB
+
+    %% Frontend to Backend
+    Services -- "HTTP/REST APIs (JSON + JWT)" --> SecFilter
+    Services -- "Multipart Form-Data" --> SecFilter
+    Context -- "WebSocket / SockJS Connection" --> WSEndpoint
+    WebRTC -- "ICE Candidates & SDP Offers/Answers" --> WSEndpoint
+
+    %% Backend to Persistence
+    AuthBiz --> DB
+    AcadBiz --> DB
+    VideoBiz --> DB
+    Analytics --> DB
+    AcadBiz --> FileSystem
+```
+
+## Features
+
+- **Role-Based JWT Authentication:** Secure login and session management for Admin, Mentor, and Student roles.
+- **WebRTC Video Call Signaling:** Backend signaling server enabling low-latency peer-to-peer video calls between mentors and mentees.
+- **Real-Time Notifications:** WebSocket-based incoming call alerts and announcements delivered instantly to users.
+- **Meeting History APIs:** Comprehensive storage and retrieval of video call records, enabling mentors to access their own history and admins to oversee platform-wide records.
+- **Comprehensive Management APIs:** Full CRUD functionality for user, batch, mentor, and student management.
+- **Goal & Certificate Tracking:** Robust tracking capabilities for student assignments, goals, and achievements.
+- **File Upload Support:** Secure handling of multipart form data for profile photos and educational resources.
+- **Password Security:** BCrypt hashing for all user credentials to maintain high security standards.
 
 ---
 
-## 🛠️ Technologies Used
+## Technologies Used
 
 | Category      | Tech Stack                              |
 |---------------|------------------------------------------|
@@ -47,32 +120,42 @@
 | Video Calls   | WebRTC Signaling via WebSocket           |
 | Build Tool    | Maven                                    |
 | Logging       | SLF4J + Logback                          |
-| Dev Tools     | MongoDB Compass, Postman                 |
 | Deployment    | Docker                                   |
 
 ---
 
-## Video Call — Backend Architecture
+## Video Call Integration Architecture
 
-The backend acts as a **WebRTC signaling server**, coordinating the peer connection setup between mentor and mentee.
+The backend serves as a critical WebRTC signaling server, coordinating the initial handshake and peer connection setup.
 
-**Flow:**
-1. Mentor sends a call initiation event through WebSocket
-2. Backend routes the **incoming call notification** to the target mentee in real time
-3. Upon acceptance, backend facilitates **SDP offer/answer and ICE candidate exchange** between peers
-4. Once connected, video flows peer-to-peer (no media passes through the server)
-5. Session metadata (participants, timestamps, duration) is **persisted to MongoDB** on call end
+```mermaid
+sequenceDiagram
+    participant Mentor
+    participant Backend as Signaling Server
+    participant Mentee
 
-**Access Control:**
-- Mentors can only call their **allocated mentees**
-- Mentors can retrieve their **own meeting history** via `/api/meetings/mentor`
-- Admins can retrieve **all meeting records** across the platform via `/api/meetings/all`
+    Mentor->>Backend: WebSocket: Initiate Call Request
+    Backend->>Mentee: WebSocket: Incoming Call Alert
+    Mentee->>Backend: WebSocket: Accept Call
+    Backend->>Mentor: WebSocket: Call Accepted
+    Mentor->>Backend: Send WebRTC Offer
+    Backend->>Mentee: Relay WebRTC Offer
+    Mentee->>Backend: Send WebRTC Answer
+    Backend->>Mentor: Relay WebRTC Answer
+    Mentor->>Mentee: ICE Candidate Exchange (via Backend)
+    Note over Mentor,Mentee: Direct P2P Video Stream Established
+```
+
+**Access Control Details:**
+- Mentors are strictly restricted to initiating calls with their allocated mentees.
+- Call history retrieval endpoints (`/api/meetings/mentor`) are scoped to the authenticated mentor.
+- System-wide meeting records are restricted to the Admin dashboard via `/api/meetings/all`.
 
 ---
 
-## 🧩 Backend Folder Structure
+## Project Structure
 
-```
+```text
 backend/
 └── src/
     └── main/
@@ -82,17 +165,17 @@ backend/
         │   ├── models/            # MongoDB Document Models
         │   ├── repositories/      # MongoDB Repositories
         │   ├── security/          # JWT Filters, Auth Config
-        │   └── config/            # CORS, WebSocket, WebRTC Signaling Config
+        │   └── config/            # CORS, WebSocket, WebRTC Config
         └── resources/
             ├── application.yml    # App Configuration
-            └── static/            # Static assets (if any)
+            └── static/            # Static assets
 ```
 
 ---
 
-## ⚙️ Configuration
+## Configuration & Setup
 
-### `application.yml`
+### `application.yml` Example
 
 ```yaml
 server:
@@ -110,66 +193,44 @@ spring:
       max-request-size: 10MB
 
 jwt:
-  secret: ${JWT_SECRET}       # Always load from environment variable
-  expiration: 86400000        # 1 day in milliseconds
+  secret: ${JWT_SECRET}
+  expiration: 86400000
 ```
 
-> 🔒 Store all secrets (`JWT_SECRET`, `MONGO_URI`) in environment variables — never hardcode them.
+*Note: Ensure all sensitive configurations (`JWT_SECRET`, `MONGO_URI`) are injected via environment variables.*
 
----
+### Local Development
 
-## 🚀 How to Run
-
-### Prerequisites
+**Prerequisites:**
 - Java 17+
 - Maven 3.6+
-- MongoDB 6.0+ running locally
-
-### Run Commands
+- MongoDB 6.0+
 
 ```bash
-# Navigate to the backend folder
-cd backend
+# Navigate to the project directory
+cd Mentee_Connect
 
-# Build the project
+# Clean and build the application
 mvn clean install
 
-# Start the server
+# Launch the Spring Boot server
 mvn spring-boot:run
 ```
 
-> MongoDB will auto-create the `menteeconnect` database on first run if it doesn't exist.
+---
+
+## Security Implementation
+
+- **Token Validation:** All protected API endpoints enforce JWT validation filters.
+- **RBAC (Role-Based Access Control):** Granular separation of concerns for Admin, Mentor, and Student endpoints.
+- **Data Protection:** BCrypt password encoding ensures data integrity at rest.
+- **CORS Policies:** Configured origin validation for frontend integration safety.
 
 ---
 
-## 📡 API Modules
+## Deployment Configuration
 
-| Module              | Base Path               |
-|---------------------|--------------------------|
-| Authentication      | `/api/auth/`             |
-| User Management     | `/api/users/`            |
-| Mentor APIs         | `/api/mentors/`          |
-| Student APIs        | `/api/students/`         |
-| Batch Management    | `/api/batches/`          |
-| File Uploads        | `/api/uploads/`          |
-| Certificates        | `/api/certificates/`     |
-| Goals / Progress    | `/api/goals/`            |
-| Notifications       | `/api/notifications/`    |
-| Meeting History     | `/api/meetings/`         |
-| WebSocket Signaling | `/ws` (STOMP endpoint)   |
-
----
-
-## 🔒 Security Highlights
-
-- **JWT Authentication** — Every API endpoint is protected with token validation
-- **Role-Based Access Control** — Admin, Mentor, and Student routes are strictly separated
-- **BCrypt Password Hashing** — Passwords are never stored in plain text
-- **CORS Configuration** — Controlled cross-origin access for frontend integration
-
----
-
-## 🐳 Docker Deployment
+**Docker Profile:**
 
 ```dockerfile
 FROM openjdk:17-jdk-slim
@@ -178,8 +239,9 @@ EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
+**Build and Run Commands:**
+
 ```bash
-# Build and run
 docker build -t menteeconnect-backend .
 docker run -p 8080:8080 \
   -e JWT_SECRET=your_secret \
@@ -189,28 +251,13 @@ docker run -p 8080:8080 \
 
 ---
 
-## 🔧 Future Enhancements
-
-- [ ] Email notifications via SMTP / Mailgun
-- [ ] Cloud file storage (AWS S3 / GCP)
-- [ ] Kafka-based event-driven architecture
-- [ ] Redis caching layer
-- [ ] Unit & integration test coverage
-- [ ] OAuth2 login (Google, GitHub)
-- [ ] CI/CD deployment pipeline
-
----
-
-## 👨‍💻 Developer
+## Developer
 
 **Mahesh Shinde**
 
-| Platform    | Link |
-|-------------|------|
-| 📧 Email    | [maheshshinde9100@gmail.com](mailto:maheshshinde9100@gmail.com) |
-| 🌐 Portfolio | [maheshshinde-dev.vercel.app](https://maheshshinde-dev.vercel.app) |
-| 🔗 LinkedIn  | [linkedin.com/in/maheshshinde9100](https://www.linkedin.com/in/maheshshinde9100) |
-| 🐙 GitHub   | [github.com/maheshshinde9100](https://github.com/maheshshinde9100) |
-| 💻 LeetCode  | [leetcode.com/u/code-with-mahesh](https://leetcode.com/u/code-with-mahesh/) |
+- **Email:** [maheshshinde9100@gmail.com](mailto:maheshshinde9100@gmail.com)
+- **Portfolio:** [maheshshinde-dev.vercel.app](https://maheshshinde-dev.vercel.app)
+- **LinkedIn:** [linkedin.com/in/maheshshinde9100](https://www.linkedin.com/in/maheshshinde9100)
+- **GitHub:** [github.com/maheshshinde9100](https://github.com/maheshshinde9100)
 
-> 🛡️ MenteeConnect backend is part of the MenteeConnect academic mentorship platform. All rights reserved. Please do not reuse without permission.
+*MenteeConnect is part of an academic mentorship platform. All rights reserved.*
