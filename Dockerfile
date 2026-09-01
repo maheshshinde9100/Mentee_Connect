@@ -89,4 +89,6 @@ COPY --from=extract build/target/extracted/application/ ./
 
 EXPOSE 8080
 
-ENTRYPOINT [ "java", "org.springframework.boot.loader.launch.JarLauncher" ]
+# Render injects $PORT at runtime. We pass it as a system property so Spring Boot
+# binds to the correct port. -XX:+UseContainerSupport ensures proper JVM memory limits.
+ENTRYPOINT [ "sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dserver.port=${PORT:-8080} org.springframework.boot.loader.launch.JarLauncher" ]
