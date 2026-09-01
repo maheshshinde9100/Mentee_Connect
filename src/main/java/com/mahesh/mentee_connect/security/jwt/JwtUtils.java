@@ -33,6 +33,7 @@ public class JwtUtils {
         return Jwts.builder()
                 .setSubject(userPrincipal.getUsername())
                 .claim("role", role)
+                .claim("userId", userPrincipal.getId())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS384)
@@ -85,6 +86,20 @@ public class JwtUtils {
             return claims.get("role", String.class);
         } catch (Exception e) {
             logger.error("Error getting role from JWT token: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public String getUserIdFromJwtToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.get("userId", String.class);
+        } catch (Exception e) {
+            logger.error("Error getting userId from JWT token: {}", e.getMessage());
             return null;
         }
     }
