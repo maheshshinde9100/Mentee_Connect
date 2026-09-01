@@ -25,7 +25,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
 import jakarta.validation.Valid;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/admin")
 @Tag(name = "Admin", description = "Admin management APIs")

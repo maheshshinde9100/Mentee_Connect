@@ -19,7 +19,6 @@ import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/profile")
-@CrossOrigin(origins = "*", maxAge = 3600)
 public class UserProfileController {
     private static final Logger logger = LoggerFactory.getLogger(UserProfileController.class);
 

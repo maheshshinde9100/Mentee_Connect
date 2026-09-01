@@ -20,7 +20,6 @@ import org.springframework.data.domain.Page;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping({"/students", "/api/students"})
 @Tag(name = "Students", description = "Student management APIs")
