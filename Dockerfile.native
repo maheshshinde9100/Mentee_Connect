@@ -8,12 +8,19 @@ COPY . .
 
 RUN chmod +x mvnw
 
-# Use BuildKit cache (IMPORTANT FIX)
+# Build the native image (GraalVM AOT compilation)
+# -DskipTests speeds up build; native profile triggers Spring AOT processing
 RUN --mount=type=cache,target=/root/.m2 \
     ./mvnw -Pnative native:compile -DskipTests
 
-# Runtime image
+# ──────────────────────────────────────────────────────────────────────────────
+# Runtime image — minimal Ubuntu for native binary
+# ──────────────────────────────────────────────────────────────────────────────
 FROM ubuntu:24.04
+
+# Install CA certificates for TLS (required for MongoDB Atlas SSL connections)
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -21,6 +28,10 @@ COPY --from=builder /app/target/mentee-connect app
 
 RUN chmod +x app
 
+# Render dynamically assigns $PORT at runtime. The native binary reads
+# SERVER_PORT or -Dserver.port. We use shell form ENTRYPOINT so $PORT expands.
 EXPOSE 8080
 
-ENTRYPOINT ["./app"]
+# Shell form so ${PORT:-8080} expands at container start (Render injects $PORT).
+# We also set server.servlet.context-path here to ensure it's always /api.
+ENTRYPOINT ["sh", "-c", "./app --server.port=${PORT:-8080} --server.servlet.context-path=/api"]
