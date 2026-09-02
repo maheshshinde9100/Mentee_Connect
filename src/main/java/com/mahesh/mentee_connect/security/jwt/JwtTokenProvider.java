@@ -15,10 +15,10 @@ import java.util.Date;
 public class JwtTokenProvider {
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
 
-    @Value("${JWT_SECRET}")
+    @Value("${app.jwtSecret}")
     private String jwtSecret;
 
-    @Value("${JWT_EXPIRATION_MS}")
+    @Value("${app.jwtExpirationMs}")
     private int jwtExpirationMs;
 
     public String generateToken(UserDetails userDetails) {
