@@ -89,36 +89,45 @@ public class JwtUtils {
                 .compact();
     }
 
-    public String getUserNameFromJwtToken(String token) {
+    private Claims parseClaims(String token) {
         try {
             return Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token)
-                    .getBody()
-                    .getSubject();
+                    .getBody();
         } catch (Exception e) {
-            logger.error("Error getting username from JWT token: {}", e.getMessage(), e);
+            logger.error("Error parsing JWT claims: {}", e.getMessage(), e);
             return null;
         }
     }
 
+    public String getUserNameFromJwtToken(String token) {
+        Claims claims = parseClaims(token);
+        if (claims == null) return null;
+        return claims.getSubject();
+    }
+
+    public String getEmailFromJwtToken(String token) {
+        Claims claims = parseClaims(token);
+        if (claims == null) return null;
+        return claims.get("email", String.class);
+    }
+
+    public String getUsernameClaimFromJwtToken(String token) {
+        Claims claims = parseClaims(token);
+        if (claims == null) return null;
+        return claims.get("username", String.class);
+    }
+
     public String getUserIdFromJWT(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            String userId = claims.get("userId", String.class);
-            if (userId == null || userId.isEmpty()) {
-                return claims.getSubject();
-            }
-            return userId;
-        } catch (Exception e) {
-            logger.error("Error getting userId from JWT token: {}", e.getMessage(), e);
-            return null;
+        Claims claims = parseClaims(token);
+        if (claims == null) return null;
+        String userId = claims.get("userId", String.class);
+        if (userId == null || userId.isEmpty()) {
+            return claims.getSubject();
         }
+        return userId;
     }
 
     public boolean validateJwtToken(String authToken) {

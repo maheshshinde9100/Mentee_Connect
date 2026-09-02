@@ -37,23 +37,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String requestURI = request.getRequestURI();
-        
+
         try {
             String jwt = parseJwt(request);
-            
+
             if (jwt != null) {
                 logger.debug("JWT token found for request: {}", requestURI);
                 if (jwtUtils.validateJwtToken(jwt)) {
-                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
-                    if (username != null) {
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    UserDetails userDetails = loadUserFromJwtClaims(jwt);
+                    if (userDetails != null) {
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-                        logger.debug("Successfully authenticated user: {} for request: {}", username, requestURI);
+                        logger.debug("Successfully authenticated user: {} for request: {}", userDetails.getUsername(), requestURI);
                     } else {
-                        logger.warn("JWT token valid but username is null for request: {}", requestURI);
+                        logger.warn("JWT token valid but user details could not be loaded for request: {}", requestURI);
                     }
                 } else {
                     logger.warn("JWT token validation FAILED for request: {}", requestURI);
@@ -66,6 +65,63 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private UserDetails loadUserFromJwtClaims(String jwt) {
+        String userId = jwtUtils.getUserIdFromJWT(jwt);
+        if (userId != null && !userId.trim().isEmpty()) {
+            try {
+                UserDetails ud = userDetailsService.loadUserById(userId);
+                if (ud != null) {
+                    logger.debug("Loaded user by userId claim: {}", userId);
+                    return ud;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to load user by userId claim {}: {}", userId, e.getMessage());
+            }
+        }
+
+        String email = jwtUtils.getEmailFromJwtToken(jwt);
+        if (email != null && !email.trim().isEmpty()) {
+            try {
+                UserDetails ud = userDetailsService.loadUserByUsername(email);
+                if (ud != null) {
+                    logger.debug("Loaded user by email claim: {}", email);
+                    return ud;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to load user by email claim {}: {}", email, e.getMessage());
+            }
+        }
+
+        String usernameClaim = jwtUtils.getUsernameClaimFromJwtToken(jwt);
+        if (usernameClaim != null && !usernameClaim.trim().isEmpty()) {
+            try {
+                UserDetails ud = userDetailsService.loadUserByUsername(usernameClaim);
+                if (ud != null) {
+                    logger.debug("Loaded user by username claim: {}", usernameClaim);
+                    return ud;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to load user by username claim {}: {}", usernameClaim, e.getMessage());
+            }
+        }
+
+        String subject = jwtUtils.getUserNameFromJwtToken(jwt);
+        if (subject != null && !subject.trim().isEmpty()) {
+            try {
+                UserDetails ud = userDetailsService.loadUserByUsername(subject);
+                if (ud != null) {
+                    logger.debug("Loaded user by JWT subject: {}", subject);
+                    return ud;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to load user by subject {}: {}", subject, e.getMessage());
+            }
+        }
+
+        logger.error("Unable to load user from JWT using any available claim");
+        return null;
     }
 
     private String parseJwt(HttpServletRequest request) {
