@@ -65,4 +65,6 @@ EXPOSE 8080
 
 # Render injects $PORT dynamically. Shell form expands it at container start.
 # -XX:+UseContainerSupport ensures JVM respects container memory limits.
-ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dserver.port=${PORT:-8080} org.springframework.boot.loader.launch.JarLauncher"]
+# SPRING_PROFILES_ACTIVE is set on Render dashboard (typically "prod") to pick up
+# application-prod.properties with stricter production settings.
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dserver.port=${PORT:-8080} ${SPRING_PROFILES_ACTIVE:+-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}} org.springframework.boot.loader.launch.JarLauncher"]

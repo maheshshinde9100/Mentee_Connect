@@ -32,3 +32,5 @@ EXPOSE 8080
 
 # Shell form so $PORT expands at container startup (Render injects $PORT dynamically).
 # --server.port overrides application.properties at runtime with Render's assigned port.
+# SPRING_PROFILES_ACTIVE set on Render (e.g. "prod") triggers application-prod.properties.
+ENTRYPOINT ["sh", "-c", "./app --server.port=${PORT:-8080} ${SPRING_PROFILES_ACTIVE:+--spring.profiles.active=${SPRING_PROFILES_ACTIVE}}"]
