@@ -33,14 +33,18 @@ public class AuthServiceImpl implements AuthService {
                 new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
+        String accessToken = jwtUtils.generateJwtToken(authentication);
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(item -> item.getAuthority())
                 .toList();
 
-        return new JwtResponse(jwt,
+        String refreshToken = jwtUtils.generateTokenFromUserDetails(userDetails);
+
+        return new JwtResponse(
+                accessToken,
+                refreshToken,
                 userDetails.getId(),
                 userDetails.getUsername(),
                 userDetails.getEmail(),

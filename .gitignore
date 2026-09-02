@@ -41,3 +41,5 @@ src/main/resources/application.properties
 MIGRATION_CHECKLIST.md
 MONGODB_MIGRATION.md
 SECURITY_LOGGING_CLEANUP.md
+aws-key.pem
+API_Endpoints.md

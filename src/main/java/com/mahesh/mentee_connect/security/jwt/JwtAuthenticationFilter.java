@@ -28,7 +28,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        // Skip JWT authentication for WebSocket upgrade requests
         String connection = request.getHeader("Connection");
         String upgrade = request.getHeader("Upgrade");
         if (connection != null && connection.toLowerCase().contains("upgrade") && 
@@ -36,32 +35,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
+
+        String requestURI = request.getRequestURI();
         
         try {
             String jwt = parseJwt(request);
-            String requestURI = request.getRequestURI();
             
             if (jwt != null) {
-                try {
-                    if (jwtUtils.validateJwtToken(jwt)) {
-                        String username = jwtUtils.getUserNameFromJwtToken(jwt);
-                        String role = jwtUtils.getRoleFromJwtToken(jwt);
-
+                logger.debug("JWT token found for request: {}", requestURI);
+                if (jwtUtils.validateJwtToken(jwt)) {
+                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                    if (username != null) {
                         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
                         SecurityContextHolder.getContext().setAuthentication(authentication);
+                        logger.debug("Successfully authenticated user: {} for request: {}", username, requestURI);
                     } else {
-                        logger.warn("Invalid JWT token for request: {}", requestURI);
+                        logger.warn("JWT token valid but username is null for request: {}", requestURI);
                     }
-                } catch (Exception e) {
-                    logger.error("Error processing JWT token");
+                } else {
+                    logger.warn("JWT token validation FAILED for request: {}", requestURI);
                 }
+            } else {
+                logger.debug("No JWT token found in Authorization header for request: {}", requestURI);
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e.getMessage(), e);
+            logger.error("Cannot set user authentication for request {}: {}", requestURI, e.getMessage(), e);
         }
 
         filterChain.doFilter(request, response);
