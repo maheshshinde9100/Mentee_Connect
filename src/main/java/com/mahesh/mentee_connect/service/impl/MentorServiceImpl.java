@@ -9,28 +9,41 @@ import com.mahesh.mentee_connect.repository.StudentRepository;
 import com.mahesh.mentee_connect.service.MentorService;
 import com.mahesh.mentee_connect.exception.ResourceNotFoundException;
 import com.mahesh.mentee_connect.exception.UnauthorizedException;
+import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.BasicQuery;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 public class MentorServiceImpl implements MentorService {
-    
+
+    private static final Logger log = LoggerFactory.getLogger(MentorServiceImpl.class);
+
     @Autowired
     private MentorRepository mentorRepository;
-    
+
     @Autowired
     private StudentRepository studentRepository;
-    
+
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
     @Override
     @Transactional
@@ -87,26 +100,78 @@ public class MentorServiceImpl implements MentorService {
         return mentorRepository.findAll();
     }
 
+    private List<Student> safeFindStudentsByMentorId(String mentorId) {
+        if (mentorId == null || mentorId.isBlank()) return Collections.emptyList();
+        Exception primaryEx = null;
+        try {
+            List<Student> s = studentRepository.findByAssignedMentorId(mentorId);
+            if (s != null) {
+                log.debug("findByAssignedMentorId({}) returned {} students via @Query repo", mentorId, s.size());
+                return s;
+            }
+        } catch (Exception ex) {
+            primaryEx = ex;
+            log.warn("StudentRepository.findByAssignedMentorId({}) failed on @Query path, falling back to MongoTemplate. Ex={}: {}",
+                    mentorId, ex.getClass().getSimpleName(), ex.getMessage());
+        }
+        try {
+            Document dbo = new Document("assignedMentor", new Document("$ref", "mentors")
+                    .append("$id", new org.bson.types.ObjectId(mentorId)));
+            List<Student> fallback = mongoTemplate.find(new BasicQuery(dbo), Student.class);
+            log.info("MongoTemplate fallback find for mentorId={} returned {} students", mentorId,
+                    fallback == null ? 0 : fallback.size());
+            return fallback == null ? Collections.emptyList() : fallback;
+        } catch (Exception fx) {
+            if (primaryEx != null) {
+                log.error("Both repo and MongoTemplate lookup failed for mentorId={}. Primary: {} {}. Fallback: {} {}. Returning empty list.",
+                        mentorId, primaryEx.getClass().getSimpleName(), primaryEx.getMessage(),
+                        fx.getClass().getSimpleName(), fx.getMessage(), fx);
+            } else {
+                log.error("MongoTemplate fallback failed for mentorId={}. {}: {}. Returning empty list.",
+                        mentorId, fx.getClass().getSimpleName(), fx.getMessage(), fx);
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    private StudentMentorDTO studentToDTO(Student s, String mentorId) {
+        if (s == null) return null;
+        try {
+            int sem = s.getSemester();
+            double att = s.getAttendance();
+            double cg = s.getCgpa();
+            return new StudentMentorDTO(
+                    s.getId(),
+                    s.getUsername(),
+                    s.getEmail(),
+                    s.getFirstName(),
+                    s.getLastName(),
+                    s.getPhoneNumber(),
+                    s.getStudentId(),
+                    s.getCourse(),
+                    s.getBatch(),
+                    sem,
+                    att,
+                    cg,
+                    mentorId);
+        } catch (Exception ex) {
+            log.warn("Skipping corrupt student document id={}: {} - {}",
+                    s.getId(), ex.getClass().getSimpleName(), ex.getMessage());
+            return null;
+        }
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<StudentMentorDTO> getMentorStudents(String mentorId) {
-        List<Student> students = studentRepository.findByAssignedMentorId(mentorId);
-        return students.stream()
-                .map(student -> new StudentMentorDTO(
-                    student.getId(),
-                    student.getUsername(),
-                    student.getEmail(),
-                    student.getFirstName(),
-                    student.getLastName(),
-                    student.getPhoneNumber(),
-                    student.getStudentId(),
-                    student.getCourse(),
-                    student.getBatch(),
-                    student.getSemester(),
-                    student.getAttendance(),
-                    student.getCgpa(),
-                    mentorId))
-                .collect(Collectors.toList());
+        List<Student> students = safeFindStudentsByMentorId(mentorId);
+        List<StudentMentorDTO> result = new ArrayList<>(students.size());
+        for (Student s : students) {
+            StudentMentorDTO dto = studentToDTO(s, mentorId);
+            if (dto != null) result.add(dto);
+        }
+        log.debug("getMentorStudents({}) -> {} DTOs (from {} raw documents)", mentorId, result.size(), students.size());
+        return result;
     }
 
     @Override
@@ -182,7 +247,14 @@ public class MentorServiceImpl implements MentorService {
     @Override
     @Transactional(readOnly = true)
     public int getAssignedStudentsCount(String mentorId) {
-        return studentRepository.findByAssignedMentorId(mentorId).size();
+        try {
+            long c = studentRepository.countByAssignedMentorId(mentorId);
+            return (int) c;
+        } catch (Exception ex) {
+            log.warn("countByAssignedMentorId({}) failed: {}. Falling back to list size.",
+                    mentorId, ex.getMessage());
+            return safeFindStudentsByMentorId(mentorId).size();
+        }
     }
 
     @Override
@@ -191,153 +263,120 @@ public class MentorServiceImpl implements MentorService {
         return mentorRepository.findAll(PageRequest.of(page, size));
     }
 
+    private boolean isStudentAssignedToMentor(Student student, String mentorId) {
+        if (student == null || mentorId == null) return false;
+        try {
+            Mentor ref = student.getAssignedMentor();
+            if (ref != null) {
+                String refId = ref.getId();
+                if (refId != null && refId.equals(mentorId)) return true;
+            }
+        } catch (Exception ignore) { }
+        List<Student> assigned = safeFindStudentsByMentorId(mentorId);
+        String sid = student.getId();
+        if (sid == null) return false;
+        for (Student s : assigned) {
+            if (sid.equals(s.getId())) return true;
+        }
+        return false;
+    }
+
     @Override
     @Transactional
     @CacheEvict(value = {"students", "mentors", "analytics"}, allEntries = true)
     public Student updateStudentAsMentor(String mentorId, String studentId, MenteeUpdateRequest updateRequest) {
-        // Verify mentor exists
         Mentor mentor = getMentorById(mentorId);
-        
-        // Get the student
+        if (mentor == null) throw new ResourceNotFoundException("Mentor", "id", mentorId);
+
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student", "id", studentId));
-        
-        // Verify that this student is assigned to this mentor
-        if (student.getAssignedMentor() == null || !student.getAssignedMentor().getId().equals(mentorId)) {
+
+        if (!isStudentAssignedToMentor(student, mentorId)) {
             throw new UnauthorizedException("This mentor is not authorized to update this student's information");
         }
-        
-        // Update allowed fields only
-        if (updateRequest.getFirstName() != null) {
-            student.setFirstName(updateRequest.getFirstName());
-        }
-        if (updateRequest.getLastName() != null) {
-            student.setLastName(updateRequest.getLastName());
-        }
-        if (updateRequest.getPhoneNumber() != null) {
-            student.setPhoneNumber(updateRequest.getPhoneNumber());
-        }
-        if (updateRequest.getCourse() != null) {
-            student.setCourse(updateRequest.getCourse());
-        }
-        if (updateRequest.getSemester() != null) {
-            student.setSemester(updateRequest.getSemester());
-        }
-        if (updateRequest.getCgpa() != null) {
-            student.setCgpa(updateRequest.getCgpa());
-        }
-        
-        // Save and return updated student
+
+        if (updateRequest.getFirstName() != null) student.setFirstName(updateRequest.getFirstName());
+        if (updateRequest.getLastName() != null) student.setLastName(updateRequest.getLastName());
+        if (updateRequest.getPhoneNumber() != null) student.setPhoneNumber(updateRequest.getPhoneNumber());
+        if (updateRequest.getCourse() != null) student.setCourse(updateRequest.getCourse());
+        if (updateRequest.getSemester() != null) student.setSemester(updateRequest.getSemester());
+        if (updateRequest.getCgpa() != null) student.setCgpa(updateRequest.getCgpa());
+
         return studentRepository.save(student);
     }
 
     @Override
     @Transactional(readOnly = true)
     public StudentMentorDTO getMenteeDetails(String mentorId, String studentId) {
-        // Verify mentor exists
         Mentor mentor = getMentorById(mentorId);
-        
-        // Get the student
+        if (mentor == null) throw new ResourceNotFoundException("Mentor", "id", mentorId);
+
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student", "id", studentId));
-        
-        // Verify that this student is assigned to this mentor
-        if (student.getAssignedMentor() == null || !student.getAssignedMentor().getId().equals(mentorId)) {
+
+        if (!isStudentAssignedToMentor(student, mentorId)) {
             throw new UnauthorizedException("This student is not assigned to the specified mentor");
         }
-        
-        return new StudentMentorDTO(
-            student.getId(),
-            student.getUsername(),
-            student.getEmail(),
-            student.getFirstName(),
-            student.getLastName(),
-            student.getPhoneNumber(),
-            student.getStudentId(),
-            student.getCourse(),
-            student.getBatch(),
-            student.getSemester(),
-            student.getAttendance(),
-            student.getCgpa(),
-            mentorId
-        );
+
+        return Objects.requireNonNullElse(studentToDTO(student, mentorId),
+                new StudentMentorDTO(
+                        student.getId(),
+                        student.getUsername(),
+                        student.getEmail(),
+                        student.getFirstName(),
+                        student.getLastName(),
+                        student.getPhoneNumber(),
+                        student.getStudentId(),
+                        student.getCourse(),
+                        student.getBatch(),
+                        0,
+                        0.0,
+                        0.0,
+                        mentorId));
     }
 
     @Override
     @Transactional
     @CacheEvict(value = {"students", "mentors", "analytics"}, allEntries = true)
     public StudentMentorDTO updateMenteeDetails(String mentorId, String studentId, MenteeUpdateRequest updateRequest) {
-        // Verify mentor exists
         Mentor mentor = getMentorById(mentorId);
-        
-        // Get the student
+        if (mentor == null) throw new ResourceNotFoundException("Mentor", "id", mentorId);
+
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student", "id", studentId));
-        
-        // Verify that this student is assigned to this mentor
-        if (student.getAssignedMentor() == null || !student.getAssignedMentor().getId().equals(mentorId)) {
+
+        if (!isStudentAssignedToMentor(student, mentorId)) {
             throw new UnauthorizedException("This mentor is not authorized to update this student's information");
         }
-        
-        // Update allowed fields only
-        if (updateRequest.getFirstName() != null) {
-            student.setFirstName(updateRequest.getFirstName());
-        }
-        if (updateRequest.getLastName() != null) {
-            student.setLastName(updateRequest.getLastName());
-        }
-        if (updateRequest.getPhoneNumber() != null) {
-            student.setPhoneNumber(updateRequest.getPhoneNumber());
-        }
-        if (updateRequest.getCourse() != null) {
-            student.setCourse(updateRequest.getCourse());
-        }
-        if (updateRequest.getSemester() != null) {
-            student.setSemester(updateRequest.getSemester());
-        }
-        if (updateRequest.getCgpa() != null) {
-            student.setCgpa(updateRequest.getCgpa());
-        }
-        if (updateRequest.getDepartment() != null) {
-            student.setDepartment(updateRequest.getDepartment());
-        }
-        if (updateRequest.getEmail() != null) {
-            student.setEmail(updateRequest.getEmail());
-        }
-        if (updateRequest.getDob() != null) {
-            student.setDob(updateRequest.getDob());
-        }
-        if (updateRequest.getProfilePhoto() != null) {
-            student.setProfilePhoto(updateRequest.getProfilePhoto());
-        }
-        
-        // Save the updated student
+
+        if (updateRequest.getFirstName() != null) student.setFirstName(updateRequest.getFirstName());
+        if (updateRequest.getLastName() != null) student.setLastName(updateRequest.getLastName());
+        if (updateRequest.getPhoneNumber() != null) student.setPhoneNumber(updateRequest.getPhoneNumber());
+        if (updateRequest.getCourse() != null) student.setCourse(updateRequest.getCourse());
+        if (updateRequest.getSemester() != null) student.setSemester(updateRequest.getSemester());
+        if (updateRequest.getCgpa() != null) student.setCgpa(updateRequest.getCgpa());
+        if (updateRequest.getDepartment() != null) student.setDepartment(updateRequest.getDepartment());
+        if (updateRequest.getEmail() != null) student.setEmail(updateRequest.getEmail());
+        if (updateRequest.getDob() != null) student.setDob(updateRequest.getDob());
+        if (updateRequest.getProfilePhoto() != null) student.setProfilePhoto(updateRequest.getProfilePhoto());
+
         student = studentRepository.save(student);
-        
-        // Save mentor notes and other mentor-specific updates
-        if (updateRequest.getMentorNotes() != null || 
-            updateRequest.getSkills() != null || 
-            updateRequest.getInterests() != null) {
-            
-            // Logic to save mentor-specific updates would go here
-            // This might involve updating a separate mentor-student relationship entity
-        }
-        
-        // Return the updated student as DTO
+
+        StudentMentorDTO dto = studentToDTO(student, mentorId);
+        if (dto != null) return dto;
         return new StudentMentorDTO(
-            student.getId(),
-            student.getUsername(),
-            student.getEmail(),
-            student.getFirstName(),
-            student.getLastName(),
-            student.getPhoneNumber(),
-            student.getStudentId(),
-            student.getCourse(),
-            student.getBatch(),
-            student.getSemester(),
-            student.getAttendance(),
-            student.getCgpa(),
-            mentorId
-        );
+                student.getId(),
+                student.getUsername(),
+                student.getEmail(),
+                student.getFirstName(),
+                student.getLastName(),
+                student.getPhoneNumber(),
+                student.getStudentId(),
+                student.getCourse(),
+                student.getBatch(),
+                0,
+                0.0,
+                0.0,
+                mentorId);
     }
 }

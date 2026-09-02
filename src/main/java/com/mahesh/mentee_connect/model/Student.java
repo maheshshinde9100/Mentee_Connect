@@ -27,7 +27,7 @@ public class Student extends User {
     private LocalDate dob;
     private String profilePhoto;
     
-    @DBRef
+    @DBRef(lazy = true)
     private Mentor assignedMentor;
     
     private double attendance;
