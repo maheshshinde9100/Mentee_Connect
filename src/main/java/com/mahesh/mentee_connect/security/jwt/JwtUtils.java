@@ -4,6 +4,7 @@ import java.util.Date;
 import java.security.Key;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +24,8 @@ public class JwtUtils {
     @Value("${app.jwtExpirationMs}")
     private int jwtExpirationMs;
 
+    private volatile Key cachedSigningKey;
+
     public String generateJwtToken(Authentication authentication) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
         String role = userPrincipal.getAuthorities().stream()
@@ -30,10 +33,20 @@ public class JwtUtils {
                 .map(GrantedAuthority::getAuthority)
                 .orElse("");
 
+        String subject;
+        String rawUsername = userPrincipal.getRawUsername();
+        if (rawUsername != null && !rawUsername.trim().isEmpty()) {
+            subject = rawUsername;
+        } else {
+            subject = userPrincipal.getEmail() != null ? userPrincipal.getEmail() : userPrincipal.getUsername();
+        }
+
         return Jwts.builder()
-                .setSubject(userPrincipal.getUsername())
+                .setSubject(subject)
                 .claim("role", role)
                 .claim("userId", userPrincipal.getId())
+                .claim("username", rawUsername)
+                .claim("email", userPrincipal.getEmail())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS384)
@@ -62,16 +75,24 @@ public class JwtUtils {
                 .parseClaimsJws(authToken);
             logger.debug("JWT token is valid");
             return true;
-        } catch (SecurityException e) {
+        } catch (SignatureException e) {
             logger.error("Invalid JWT signature: {}", e.getMessage());
+        } catch (io.jsonwebtoken.security.SecurityException e) {
+            logger.error("JWT security violation: {}", e.getMessage());
         } catch (MalformedJwtException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
+            logger.error("Invalid JWT token structure: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
             logger.error("JWT token is expired: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
             logger.error("JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
             logger.error("JWT claims string is empty: {}", e.getMessage());
+        } catch (ClaimJwtException e) {
+            logger.error("JWT claim validation failed: {}", e.getMessage());
+        } catch (JwtException e) {
+            logger.error("General JWT validation failure: {}", e.getMessage());
+        } catch (Exception e) {
+            logger.error("Unexpected error during JWT validation: {}", e.getMessage(), e);
         }
         return false;
     }
@@ -105,12 +126,53 @@ public class JwtUtils {
     }
 
     private Key getSigningKey() {
-        try {
-            byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
-            return Keys.hmacShaKeyFor(keyBytes);
-        } catch (Exception e) {
-            logger.error("Error creating signing key: {}", e.getMessage());
-            throw e;
+        if (cachedSigningKey != null) {
+            return cachedSigningKey;
         }
+        try {
+            byte[] keyBytes;
+            String secret = jwtSecret == null ? "" : jwtSecret.trim();
+            if (secret.isEmpty()) {
+                throw new IllegalStateException("JWT secret is not configured. Set JWT_SECRET env var or app.jwtSecret property.");
+            }
+            try {
+                keyBytes = Decoders.BASE64.decode(secret);
+            } catch (Exception e) {
+                try {
+                    keyBytes = hexStringToByteArray(secret);
+                } catch (Exception e2) {
+                    logger.error("JWT secret is not valid Base64 or Hex. Length={}", secret.length());
+                    throw e2;
+                }
+                logger.info("JWT secret decoded from HEX string ({} bytes). Recommended: use Base64 next time.", keyBytes.length);
+            }
+            Key key = Keys.hmacShaKeyFor(keyBytes);
+            cachedSigningKey = key;
+            return key;
+        } catch (Exception e) {
+            logger.error("Failed to build JWT signing key: {}", e.getMessage());
+            throw new IllegalStateException("JWT signing key could not be created", e);
+        }
+    }
+
+    public static byte[] hexStringToByteArrayStatic(String s) {
+        int len = s.length();
+        if (len % 2 != 0) {
+            throw new IllegalArgumentException("Hex string must have even length");
+        }
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            int hi = Character.digit(s.charAt(i), 16);
+            int lo = Character.digit(s.charAt(i + 1), 16);
+            if (hi < 0 || lo < 0) {
+                throw new IllegalArgumentException("Invalid hex character at position " + i);
+            }
+            data[i / 2] = (byte) ((hi << 4) + lo);
+        }
+        return data;
+    }
+
+    private byte[] hexStringToByteArray(String s) {
+        return hexStringToByteArrayStatic(s);
     }
 }

@@ -28,40 +28,62 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        // Skip JWT authentication for WebSocket upgrade requests
         String connection = request.getHeader("Connection");
         String upgrade = request.getHeader("Upgrade");
-        if (connection != null && connection.toLowerCase().contains("upgrade") && 
+        if (connection != null && connection.toLowerCase().contains("upgrade") &&
             upgrade != null && upgrade.toLowerCase().equals("websocket")) {
             filterChain.doFilter(request, response);
             return;
         }
-        
+
+        String requestURI = request.getRequestURI();
         try {
             String jwt = parseJwt(request);
-            String requestURI = request.getRequestURI();
-            
-            if (jwt != null) {
-                try {
-                    if (jwtUtils.validateJwtToken(jwt)) {
-                        String username = jwtUtils.getUserNameFromJwtToken(jwt);
-                        String role = jwtUtils.getRoleFromJwtToken(jwt);
 
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            if (jwt != null) {
+                boolean valid = jwtUtils.validateJwtToken(jwt);
+                if (valid) {
+                    String usernameOrEmail = jwtUtils.getUserNameFromJwtToken(jwt);
+                    String userId = jwtUtils.getUserIdFromJwtToken(jwt);
+
+                    if (usernameOrEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                        UserDetails userDetails;
+                        try {
+                            userDetails = userDetailsService.loadUserByUsername(usernameOrEmail);
+                        } catch (Exception lookupEx) {
+                            if (userId != null) {
+                                try {
+                                    userDetails = userDetailsService.loadUserById(userId);
+                                    logger.info("JWT subject lookup failed for '{}'; fell back to userId={}", usernameOrEmail, userId);
+                                } catch (Exception fallbackEx) {
+                                    logger.warn("Could not load user from JWT (subject='{}', userId={}): {}",
+                                            usernameOrEmail, userId, fallbackEx.getMessage());
+                                    filterChain.doFilter(request, response);
+                                    return;
+                                }
+                            } else {
+                                logger.warn("JWT subject lookup failed for '{}' and no userId claim: {}",
+                                        usernameOrEmail, lookupEx.getMessage());
+                                filterChain.doFilter(request, response);
+                                return;
+                            }
+                        }
+
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-                    } else {
-                        logger.warn("Invalid JWT token for request: {}", requestURI);
+
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Authenticated user '{}' for URI {}", usernameOrEmail, requestURI);
+                        }
                     }
-                } catch (Exception e) {
-                    logger.error("Error processing JWT token");
+                } else {
+                    logger.warn("Rejected invalid JWT for request: {}", requestURI);
                 }
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e.getMessage(), e);
+            logger.error("Cannot set user authentication for URI {}: {}", requestURI, e.getMessage(), e);
         }
 
         filterChain.doFilter(request, response);
@@ -77,4 +99,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return null;
     }
-} 
+}
