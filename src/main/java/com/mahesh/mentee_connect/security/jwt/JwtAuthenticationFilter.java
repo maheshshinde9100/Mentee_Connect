@@ -77,7 +77,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return ud;
                 }
             } catch (Exception e) {
-                logger.warn("Failed to load user by userId claim {}: {}", userId, e.getMessage());
+                logger.warn("Failed to load user by userId claim {}: {}", userId, e.getMessage(), e);
             }
         }
 
@@ -90,7 +90,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return ud;
                 }
             } catch (Exception e) {
-                logger.warn("Failed to load user by email claim {}: {}", email, e.getMessage());
+                logger.warn("Failed to load user by email claim {}: {}", email, e.getMessage(), e);
             }
         }
 
@@ -103,7 +103,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return ud;
                 }
             } catch (Exception e) {
-                logger.warn("Failed to load user by username claim {}: {}", usernameClaim, e.getMessage());
+                logger.warn("Failed to load user by username claim {}: {}", usernameClaim, e.getMessage(), e);
             }
         }
 
@@ -116,11 +116,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return ud;
                 }
             } catch (Exception e) {
-                logger.warn("Failed to load user by subject {}: {}", subject, e.getMessage());
+                logger.warn("Failed to load user by subject {}: {}", subject, e.getMessage(), e);
             }
         }
 
-        logger.error("Unable to load user from JWT using any available claim");
+        String roleClaim = jwtUtils.getRoleFromJwtToken(jwt);
+        logger.error(
+                "Unable to load user from JWT using any available claim. " +
+                "Claims available — userId='{}', email='{}', username='{}', subject='{}', role='{}'",
+                jwtUtils.getUserIdFromJWT(jwt),
+                jwtUtils.getEmailFromJwtToken(jwt),
+                jwtUtils.getUsernameClaimFromJwtToken(jwt),
+                subject,
+                roleClaim);
         return null;
     }
 

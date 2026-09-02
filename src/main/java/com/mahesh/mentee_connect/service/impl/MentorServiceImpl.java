@@ -110,19 +110,66 @@ public class MentorServiceImpl implements MentorService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Mentor getCurrentMentor() {
-        // Get the authenticated user from the SecurityContext
-        org.springframework.security.core.Authentication authentication = 
+        org.springframework.security.core.Authentication authentication =
             org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        
+
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new UnauthorizedException("User not authenticated");
         }
-        
-        String username = authentication.getName();
-        return mentorRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Mentor", "username", username));
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof com.mahesh.mentee_connect.security.services.UserDetailsImpl) {
+            com.mahesh.mentee_connect.security.services.UserDetailsImpl ud =
+                    (com.mahesh.mentee_connect.security.services.UserDetailsImpl) principal;
+
+            String userId = ud.getId();
+            if (userId != null && !userId.isBlank()) {
+                java.util.Optional<Mentor> byId = mentorRepository.findById(userId);
+                if (byId.isPresent()) {
+                    return normalizeMentorUsername(byId.get(), ud);
+                }
+            }
+
+            String email = ud.getEmail();
+            if (email != null && !email.isBlank()) {
+                java.util.Optional<Mentor> byEmail = mentorRepository.findByEmail(email);
+                if (byEmail.isPresent()) {
+                    return normalizeMentorUsername(byEmail.get(), ud);
+                }
+            }
+        }
+
+        String name = authentication.getName();
+        if (name != null && !name.isBlank()) {
+            java.util.Optional<Mentor> byUsername = mentorRepository.findByUsername(name);
+            if (byUsername.isPresent()) return byUsername.get();
+            java.util.Optional<Mentor> byEmail = mentorRepository.findByEmail(name);
+            if (byEmail.isPresent()) return byEmail.get();
+        }
+
+        throw new ResourceNotFoundException("Mentor", "principal", String.valueOf(principal));
+    }
+
+    private Mentor normalizeMentorUsername(Mentor mentor, com.mahesh.mentee_connect.security.services.UserDetailsImpl ud) {
+        boolean dirty = false;
+        if ((mentor.getUsername() == null || mentor.getUsername().isBlank()) && ud.getUsername() != null && !ud.getUsername().isBlank()) {
+            mentor.setUsername(ud.getUsername());
+            dirty = true;
+        }
+        if (mentor.getEmail() == null && ud.getEmail() != null) {
+            mentor.setEmail(ud.getEmail());
+            dirty = true;
+        }
+        if (mentor.getRole() == null) {
+            mentor.setRole(com.mahesh.mentee_connect.model.User.UserRole.ROLE_MENTOR);
+            dirty = true;
+        }
+        if (dirty) {
+            return mentorRepository.save(mentor);
+        }
+        return mentor;
     }
 
     @Override
