@@ -2,6 +2,8 @@ package com.mahesh.mentee_connect.websocket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mahesh.mentee_connect.security.jwt.JwtUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -27,16 +29,44 @@ public class SignalingHandler extends TextWebSocketHandler {
     // userId -> session
     private static final Map<String, WebSocketSession> SESSIONS = new ConcurrentHashMap<>();
 
+    @Autowired
+    private JwtUtils jwtUtils;
+
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        // System.out.println("WS: Connection attempt from URI: " + session.getUri());
         String userId = extractUserId(session.getUri());
+        String token = extractToken(session.getUri());
+        
+        // Validate JWT token if provided
+        if (token != null && !token.isEmpty()) {
+            try {
+                if (!jwtUtils.validateJwtToken(token)) {
+                    try {
+                        session.close();
+                    } catch (IOException e) {
+                        System.err.println("Error closing session: " + e.getMessage());
+                    }
+                    return;
+                }
+                // Extract userId from token for proper routing
+                String tokenUserId = jwtUtils.getUserIdFromJwtToken(token);
+                if (tokenUserId != null && !tokenUserId.isEmpty()) {
+                    userId = tokenUserId; // Use token userId for consistency with database IDs
+                }
+            } catch (Exception e) {
+                try {
+                    session.close();
+                } catch (IOException ioException) {
+                    System.err.println("Error closing session: " + ioException.getMessage());
+                }
+                return;
+            }
+        }
+        
         if (userId != null && !userId.isEmpty()) {
             SESSIONS.put(userId, session);
             session.getAttributes().put("userId", userId);
-            // System.out.println("WS connected: " + userId + " (Total sessions: " + SESSIONS.size() + ")");
         } else {
-            // System.out.println("WS connection rejected: missing or empty userId");
             try {
                 session.close();
             } catch (IOException e) {
@@ -100,7 +130,6 @@ public class SignalingHandler extends TextWebSocketHandler {
 
     private String extractUserId(URI uri) {
         if (uri == null || uri.getQuery() == null) {
-            // System.out.println("WS: URI or query is null");
             return null;
         }
         try {
@@ -108,7 +137,7 @@ public class SignalingHandler extends TextWebSocketHandler {
                     .map(p -> p.split("=", 2))
                     .filter(arr -> arr.length == 2)
                     .collect(Collectors.toMap(
-                            arr -> arr[0], 
+                            arr -> arr[0],
                             arr -> {
                                 try {
                                     return java.net.URLDecoder.decode(arr[1], "UTF-8");
@@ -117,12 +146,33 @@ public class SignalingHandler extends TextWebSocketHandler {
                                 }
                             }
                     ));
-            String userId = params.get("userId");
-            // System.out.println("WS: Extracted userId from query: " + userId);
-            return userId;
+            return params.get("userId");
         } catch (Exception e) {
             System.err.println("WS: Error extracting userId: " + e.getMessage());
-            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private String extractToken(URI uri) {
+        if (uri == null || uri.getQuery() == null) {
+            return null;
+        }
+        try {
+            Map<String, String> params = List.of(uri.getQuery().split("&")).stream()
+                    .map(p -> p.split("=", 2))
+                    .filter(arr -> arr.length == 2)
+                    .collect(Collectors.toMap(
+                            arr -> arr[0],
+                            arr -> {
+                                try {
+                                    return java.net.URLDecoder.decode(arr[1], "UTF-8");
+                                } catch (Exception e) {
+                                    return arr[1];
+                                }
+                            }
+                    ));
+            return params.get("token");
+        } catch (Exception e) {
             return null;
         }
     }

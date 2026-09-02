@@ -5,6 +5,7 @@ import com.mahesh.mentee_connect.payload.request.LoginRequest;
 import com.mahesh.mentee_connect.payload.response.JwtResponse;
 import com.mahesh.mentee_connect.security.jwt.JwtUtils;
 import com.mahesh.mentee_connect.security.services.UserDetailsImpl;
+import com.mahesh.mentee_connect.security.services.UserDetailsServiceImpl;
 import com.mahesh.mentee_connect.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,7 +13,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -25,7 +25,7 @@ public class AuthServiceImpl implements AuthService {
     private JwtUtils jwtUtils;
 
     @Autowired
-    private UserDetailsService userDetailsService;
+    private UserDetailsServiceImpl userDetailsService;
 
     @Override
     public JwtResponse authenticateUser(LoginRequest loginRequest) {
@@ -89,6 +89,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserDetails loadUserById(String userId) {
-        return userDetailsService.loadUserByUsername(userId);
+        return userDetailsService.loadUserById(userId);
     }
 } 

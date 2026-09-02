@@ -30,15 +30,15 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     @Transactional
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        // Try to find by email first
+        logger.debug("Loading user by identifier: {}", usernameOrEmail);
+
         Optional<User> user = studentRepository.findByEmail(usernameOrEmail)
                 .map(student -> (User) student)
                 .or(() -> mentorRepository.findByEmail(usernameOrEmail)
                         .map(mentor -> (User) mentor))
                 .or(() -> adminRepository.findByEmail(usernameOrEmail)
                         .map(admin -> (User) admin));
-                    
-        // If not found by email, try by username
+
         if (user.isEmpty()) {
             user = studentRepository.findByUsername(usernameOrEmail)
                     .map(student -> (User) student)
@@ -49,9 +49,25 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
 
         if (user.isEmpty()) {
-            throw new UsernameNotFoundException("User Not Found");
+            logger.warn("User not found for identifier: {}", usernameOrEmail);
+            throw new UsernameNotFoundException("User Not Found with identifier: " + usernameOrEmail);
         }
 
+        logger.debug("Loaded user '{}' (id={}) with role {}", user.get().getUsername(), user.get().getId(), user.get().getRole());
         return UserDetailsImpl.build(user.get());
     }
-} 
+
+    @Transactional
+    public UserDetails loadUserById(String userId) {
+        logger.debug("Loading user by id: {}", userId);
+        Optional<User> user = studentRepository.findById(userId)
+                .map(s -> (User) s)
+                .or(() -> mentorRepository.findById(userId).map(m -> (User) m))
+                .or(() -> adminRepository.findById(userId).map(a -> (User) a));
+
+        return user.map(u -> {
+            logger.debug("Loaded user by id {}: '{}' role={}", userId, u.getUsername(), u.getRole());
+            return UserDetailsImpl.build(u);
+        }).orElseThrow(() -> new UsernameNotFoundException("User Not Found with id: " + userId));
+    }
+}

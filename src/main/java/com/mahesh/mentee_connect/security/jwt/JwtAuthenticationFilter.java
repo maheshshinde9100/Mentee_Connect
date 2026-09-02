@@ -30,7 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String connection = request.getHeader("Connection");
         String upgrade = request.getHeader("Upgrade");
-        if (connection != null && connection.toLowerCase().contains("upgrade") && 
+        if (connection != null && connection.toLowerCase().contains("upgrade") &&
             upgrade != null && upgrade.toLowerCase().equals("websocket")) {
             filterChain.doFilter(request, response);
             return;
@@ -78,4 +78,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return null;
     }
-} 
+}

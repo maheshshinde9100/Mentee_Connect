@@ -68,6 +68,10 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public String getUsername() {
+        return username != null && !username.trim().isEmpty() ? username : email;
+    }
+
+    public String getRawUsername() {
         return username;
     }
 

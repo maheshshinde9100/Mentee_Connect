@@ -8,6 +8,7 @@ public class JwtResponse {
     private String token;
     private String refreshToken;
     private String tokenType = "Bearer";
+    private long expiresIn = 86400;
     private String id;
     private String username;
     private String email;
@@ -20,5 +21,9 @@ public class JwtResponse {
         this.username = username;
         this.email = email;
         this.roles = roles;
+    }
+
+    public JwtResponse(String token, String id, String username, String email, List<String> roles) {
+        this(token, token, id, username, email, roles);
     }
 } 

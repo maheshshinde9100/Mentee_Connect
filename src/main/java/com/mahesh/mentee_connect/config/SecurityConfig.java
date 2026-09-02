@@ -40,11 +40,10 @@ public class SecurityConfig {
     private JwtUtils jwtUtils;
 
     /**
-     * Comma-separated origin patterns for browser clients (React).
-     * Android native apps do not use CORS; they authenticate with JWT Bearer tokens.
-     * Example: http://localhost:3000,https://your-app.vercel.app
+     * Comma-separated origin patterns for browser clients.
+     * Allowed to '*' to ensure Android WebViews and custom schemes are supported.
      */
-    @Value("${app.cors.allowed-origin-patterns:http://localhost:3000,http://127.0.0.1:3000}")
+    @Value("${app.cors.allowed-origin-patterns:*}")
     private String corsAllowedOriginPatterns;
 
     @Bean
@@ -105,13 +104,39 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+
+        // Parse allowed origin patterns from config
         List<String> patterns = Arrays.stream(corsAllowedOriginPatterns.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
-        configuration.setAllowedOriginPatterns(patterns);
+
+        // If the pattern is literally "*" we must NOT use allowCredentials=true
+        // (CORS spec forbids wildcard + credentials). Instead, list origins explicitly.
+        boolean isWildcard = patterns.size() == 1 && patterns.get(0).equals("*");
+        if (isWildcard) {
+            // Explicit list of allowed origins - covers web frontend + Android dev builds
+            configuration.setAllowedOriginPatterns(Arrays.asList(
+                "https://menteeconnect.vercel.app",
+                "https://*.vercel.app",        // Vercel preview deployments
+                "http://localhost:3000",
+                "http://localhost:8080",
+                "http://127.0.0.1:3000",
+                "http://10.0.2.2:8080",        // Android emulator -> host machine
+                "http://10.0.2.2:3000",
+                "capacitor://*",               // Capacitor/Ionic Android/iOS WebView
+                "ionic://*",
+                "https://menteeconnect-backend.onrender.com"
+            ));
+        } else {
+            configuration.setAllowedOriginPatterns(patterns);
+        }
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With"));
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization", "Content-Type", "Accept",
+            "X-Requested-With", "Origin", "Content-Disposition", "Cache-Control"
+        ));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
