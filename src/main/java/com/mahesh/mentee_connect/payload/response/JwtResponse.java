@@ -23,6 +23,16 @@ public class JwtResponse {
         this.roles = roles;
     }
 
+    public JwtResponse(String token, String refreshToken, String id, String username, String email, List<String> roles, long expiresInSec) {
+        this.token = token;
+        this.refreshToken = refreshToken;
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.roles = roles;
+        this.expiresIn = expiresInSec;
+    }
+
     public JwtResponse(String token, String id, String username, String email, List<String> roles) {
         this(token, token, id, username, email, roles);
     }

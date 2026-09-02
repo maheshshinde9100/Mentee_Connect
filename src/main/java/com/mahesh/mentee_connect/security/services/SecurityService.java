@@ -42,7 +42,15 @@ public class SecurityService {
         String currentUserId = authService.getCurrentUserId();
         return currentUserId != null && currentUserId.equals(userId);
     }
-    
+
+    /**
+     * Alias of isCurrentUser() used on some StudentController endpoints.
+     * Returns true if the currently authenticated mentor's user id matches the given mentor id.
+     */
+    public boolean isCurrentMentor(String mentorId) {
+        return isCurrentUser(mentorId);
+    }
+
     /**
      * Check if the current authenticated user is a mentor
      */

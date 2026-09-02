@@ -91,4 +91,9 @@ public class AuthServiceImpl implements AuthService {
     public UserDetails loadUserById(String userId) {
         return userDetailsService.loadUserById(userId);
     }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws org.springframework.security.core.userdetails.UsernameNotFoundException {
+        return userDetailsService.loadUserByUsername(username);
+    }
 } 

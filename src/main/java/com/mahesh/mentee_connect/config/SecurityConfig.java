@@ -87,6 +87,7 @@ public class SecurityConfig {
                     .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                     .requestMatchers("/notifications/auth-test").permitAll()
                     .requestMatchers("/notifications/auth-status").permitAll()
+                    .requestMatchers("/error", "/api/error").permitAll()
                     // Admin APIs — method-level @PreAuthorize also applies
                     .requestMatchers("/admin/**").hasRole("ADMIN")
                     // WebSocket signaling (JWT validated in handshake handler where configured)

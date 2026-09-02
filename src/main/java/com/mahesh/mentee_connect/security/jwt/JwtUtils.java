@@ -25,6 +25,10 @@ public class JwtUtils {
     @Value("${app.jwtExpirationMs}")
     private int jwtExpirationMs;
 
+    public int getJwtExpirationMs() {
+        return jwtExpirationMs;
+    }
+
     private volatile Key cachedSigningKey;
 
     public String generateJwtToken(Authentication authentication) {

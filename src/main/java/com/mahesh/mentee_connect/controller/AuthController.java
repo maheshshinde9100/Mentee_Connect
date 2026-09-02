@@ -52,40 +52,79 @@ public class AuthController {
     public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
         try {
             String refreshToken = request.getRefreshToken();
-            logger.info("Refresh token request received");
-            
+            logger.debug("Refresh token request received");
+
             if (refreshToken == null || refreshToken.isBlank()) {
                 logger.warn("Refresh token is missing or empty");
                 return ResponseEntity.badRequest().body(new ErrorResponse("Refresh token is required"));
             }
 
-            if (jwtUtils.validateJwtToken(refreshToken)) {
-                String username = jwtUtils.getUserNameFromJwtToken(refreshToken);
-                if (username == null || username.isBlank()) {
-                    logger.error("Refresh token valid but username could not be extracted");
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                            .body(new ErrorResponse("Invalid refresh token: no username"));
-                }
-
-                UserDetails userDetails = authService.loadUserById(username);
-                String newToken = jwtUtils.generateTokenFromUserDetails(userDetails);
-                String role = userDetails.getAuthorities().stream()
-                        .findFirst()
-                        .map(a -> a.getAuthority())
-                        .orElse("");
-
-                logger.info("Refresh token succeeded for user: {}", username);
-                return ResponseEntity.ok(new AuthResponse(
-                    newToken,
-                    refreshToken,
-                    userDetails.getUsername(),
-                    role
-                ));
+            if (!jwtUtils.validateJwtToken(refreshToken)) {
+                logger.warn("Refresh token validation failed");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Invalid or expired refresh token"));
             }
 
-            logger.warn("Refresh token validation failed");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ErrorResponse("Invalid or expired refresh token"));
+            String userId = jwtUtils.getUserIdFromJWT(refreshToken);
+            String emailClaim = jwtUtils.getEmailFromJwtToken(refreshToken);
+            String usernameClaim = jwtUtils.getUsernameClaimFromJwtToken(refreshToken);
+            String subject = jwtUtils.getUserNameFromJwtToken(refreshToken);
+
+            logger.debug("Refresh token claims — userId='{}', email='{}', username='{}', subject='{}'",
+                    userId, emailClaim, usernameClaim, subject);
+
+            UserDetails userDetails = null;
+            String lookup = null;
+            if (userId != null && !userId.isBlank()) {
+                try {
+                    lookup = "userId:" + userId;
+                    userDetails = authService.loadUserById(userId);
+                } catch (Exception e1) {
+                    logger.warn("loadUserById({}) failed: {}", userId, e1.getMessage());
+                }
+            }
+            if (userDetails == null) {
+                String identifier = emailClaim != null && !emailClaim.isBlank() ? emailClaim
+                        : (usernameClaim != null && !usernameClaim.isBlank() ? usernameClaim : subject);
+                if (identifier != null && !identifier.isBlank()) {
+                    try {
+                        lookup = "identifier:" + identifier;
+                        userDetails = authService.loadUserByUsername(identifier);
+                    } catch (Exception e2) {
+                        logger.warn("loadUserByUsername({}) failed: {}", identifier, e2.getMessage());
+                    }
+                }
+            }
+
+            if (userDetails == null) {
+                logger.error("Refresh token valid but user not found by any claim. userId='{}', email='{}', username='{}', subject='{}'",
+                        userId, emailClaim, usernameClaim, subject);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Invalid refresh token: user not found"));
+            }
+
+            String newToken = jwtUtils.generateTokenFromUserDetails(userDetails);
+            String role = userDetails.getAuthorities().stream()
+                    .findFirst()
+                    .map(a -> a.getAuthority())
+                    .orElse("");
+            String userDbId = userDetails instanceof com.mahesh.mentee_connect.security.services.UserDetailsImpl
+                    ? ((com.mahesh.mentee_connect.security.services.UserDetailsImpl) userDetails).getId()
+                    : "";
+            String userEmail = userDetails instanceof com.mahesh.mentee_connect.security.services.UserDetailsImpl
+                    ? ((com.mahesh.mentee_connect.security.services.UserDetailsImpl) userDetails).getEmail()
+                    : "";
+
+            logger.info("Refresh token succeeded via {} -> userId={} role={}", lookup, userDbId, role);
+            return ResponseEntity.ok(new JwtResponse(
+                    newToken,
+                    refreshToken,
+                    userDbId,
+                    userDetails.getUsername(),
+                    userEmail,
+                    role.isEmpty() ? java.util.List.of() : java.util.List.of(role),
+                    (int) (jwtUtils.getJwtExpirationMs() / 1000)
+            ));
         } catch (Exception ex) {
             logger.error("Token refresh failed with exception: {}", ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
