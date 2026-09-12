@@ -39,6 +39,8 @@ import com.mahesh.mentee_connect.repository.CertificateRepository;
 import com.mahesh.mentee_connect.exception.UnauthorizedException;
 import com.mahesh.mentee_connect.dto.StudentProfileDTO;
 import com.mahesh.mentee_connect.dto.StudentProfileResponseDTO;
+
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
@@ -46,21 +48,21 @@ import org.springframework.cache.annotation.CacheEvict;
 
 @Service
 public class StudentServiceImpl implements StudentService {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(StudentServiceImpl.class);
-    
+
     @Autowired
     private StudentRepository studentRepository;
-    
+
     @Autowired
     private MentorRepository mentorRepository;
-    
+
     @Autowired
     private MenteeTaskRepository menteeTaskRepository;
-    
+
     @Autowired
     private MenteeAttendanceRepository menteeAttendanceRepository;
-    
+
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -72,7 +74,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
+    @CacheEvict(value = { "students", "analytics" }, allEntries = true)
     public Student createStudent(Student student) {
         student.setPassword(passwordEncoder.encode(student.getPassword()));
         student.setRole(com.mahesh.mentee_connect.model.User.UserRole.ROLE_STUDENT);
@@ -81,7 +83,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
+    @CacheEvict(value = { "students", "analytics" }, allEntries = true)
     public Student updateStudent(String id, Student studentDetails) {
         Student student = getStudentById(id);
         student.setFirstName(studentDetails.getFirstName());
@@ -96,7 +98,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
+    @CacheEvict(value = { "students", "analytics" }, allEntries = true)
     public void deleteStudent(String id) {
         Student student = getStudentById(id);
         studentRepository.delete(student);
@@ -126,17 +128,17 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(readOnly = true)
     public List<Student> getStudentsByMentorId(String mentorId) {
-        return studentRepository.findByAssignedMentorId(mentorId);
+        return studentRepository.findByAssignedMentorId(new ObjectId(mentorId));
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = {"students", "analytics", "mentors"}, allEntries = true)
+    @CacheEvict(value = { "students", "analytics", "mentors" }, allEntries = true)
     public Student assignMentorToStudent(String studentId, String mentorId) {
         Student student = getStudentById(studentId);
         Mentor mentor = mentorRepository.findById(mentorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor", "id", mentorId));
-        
+
         // Check if mentor has available slots
         if (mentor.getAssignedStudents().size() >= mentor.getMaxStudents()) {
             throw new RuntimeException("Mentor has reached maximum student capacity");
@@ -157,7 +159,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
+    @CacheEvict(value = { "students", "analytics" }, allEntries = true)
     public Student updateStudentProgress(String studentId, double attendance, double cgpa) {
         Student student = getStudentById(studentId);
         student.setAttendance(attendance);
@@ -199,8 +201,8 @@ public class StudentServiceImpl implements StudentService {
             throw new ResourceNotFoundException("Mentor not assigned to student", "studentId", studentId);
         }
         Mentor mentor = student.getAssignedMentor();
-        return new MentorResponse(mentor.getId(), mentor.getFirstName(), mentor.getLastName(), 
-            mentor.getEmail(), mentor.getPhoneNumber(), mentor.getDepartment(), mentor.getSpecialization());
+        return new MentorResponse(mentor.getId(), mentor.getFirstName(), mentor.getLastName(),
+                mentor.getEmail(), mentor.getPhoneNumber(), mentor.getDepartment(), mentor.getSpecialization());
     }
 
     @Override
@@ -213,7 +215,7 @@ public class StudentServiceImpl implements StudentService {
     @Transactional(readOnly = true)
     public List<Student> searchStudents(String query) {
         return studentRepository.findByFirstNameContainingOrLastNameContainingOrEmailContaining(
-            query, query, query);
+                query, query, query);
     }
 
     @Override
@@ -225,18 +227,18 @@ public class StudentServiceImpl implements StudentService {
         }
         Mentor mentor = student.getAssignedMentor();
         return new MentorResponse(mentor.getId(), mentor.getFirstName(), mentor.getLastName(),
-            mentor.getEmail(), mentor.getPhoneNumber(), mentor.getDepartment(), mentor.getSpecialization());
+                mentor.getEmail(), mentor.getPhoneNumber(), mentor.getDepartment(), mentor.getSpecialization());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProgressReport> getProgressReports(String studentId) {
         Student student = getStudentById(studentId);
-        
+
         // Retrieve tasks and attendance data for the student
         List<MenteeTask> tasks = menteeTaskRepository.findByStudentId(studentId);
         List<MenteeAttendance> attendanceRecords = menteeAttendanceRepository.findByStudentId(studentId);
-        
+
         // Create a progress report based on actual data
         ProgressReport currentReport = new ProgressReport();
         currentReport.setId(UUID.randomUUID().toString());
@@ -245,7 +247,7 @@ public class StudentServiceImpl implements StudentService {
         currentReport.setReportDate(LocalDateTime.now());
         currentReport.setAttendance(student.getAttendance());
         currentReport.setCgpa(student.getCgpa());
-        
+
         // Calculate task completion rate
         if (!tasks.isEmpty()) {
             long completedTasks = tasks.stream()
@@ -254,13 +256,13 @@ public class StudentServiceImpl implements StudentService {
             double completionRate = (double) completedTasks / tasks.size() * 100.0;
             currentReport.setTaskCompletionRate(Math.round(completionRate * 10.0) / 10.0); // Round to 1 decimal place
         }
-        
+
         // Calculate recent attendance rate (last 30 days)
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         List<MenteeAttendance> recentAttendance = attendanceRecords.stream()
                 .filter(a -> a.getDate().isAfter(thirtyDaysAgo.toLocalDate()))
                 .collect(Collectors.toList());
-        
+
         if (!recentAttendance.isEmpty()) {
             long presentCount = recentAttendance.stream()
                     .filter(a -> a.getStudentStatus(studentId) == MenteeAttendance.AttendanceStatus.PRESENT)
@@ -268,7 +270,7 @@ public class StudentServiceImpl implements StudentService {
             double attendanceRate = (double) presentCount / recentAttendance.size() * 100.0;
             currentReport.setRecentAttendanceRate(Math.round(attendanceRate * 10.0) / 10.0); // Round to 1 decimal place
         }
-        
+
         return List.of(currentReport);
     }
 
@@ -289,7 +291,7 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional(readOnly = true)
     public Page<StudentDTO> getStudentsByMentorIdPageable(String mentorId, int page, int size) {
-        return studentRepository.findByAssignedMentorId(mentorId, PageRequest.of(page, size))
+        return studentRepository.findByAssignedMentorId(new ObjectId(mentorId), PageRequest.of(page, size))
                 .map(this::convertToDTO);
     }
 
@@ -304,33 +306,35 @@ public class StudentServiceImpl implements StudentService {
                 .branch(student.getCourse())
                 .cgpa(student.getCgpa())
                 .mentorId(student.getAssignedMentor() != null ? student.getAssignedMentor().getId() : null)
-                .mentorName(student.getAssignedMentor() != null ? student.getAssignedMentor().getFirstName() + " " + student.getAssignedMentor().getLastName() : null)
+                .mentorName(student.getAssignedMentor() != null
+                        ? student.getAssignedMentor().getFirstName() + " " + student.getAssignedMentor().getLastName()
+                        : null)
                 .phoneNumber(student.getPhoneNumber())
                 .build();
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = {"students", "analytics", "mentors"}, allEntries = true)
+    @CacheEvict(value = { "students", "analytics", "mentors" }, allEntries = true)
     public List<Student> assignMentorToMultipleStudents(List<String> studentIds, String mentorId) {
         Mentor mentor = mentorRepository.findById(mentorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor", "id", mentorId));
-        
+
         // Check if mentor has enough available slots
         int currentAssignedCount = mentor.getAssignedStudents().size();
         int requestedAssignments = studentIds.size();
-        
+
         if (currentAssignedCount + requestedAssignments > mentor.getMaxStudents()) {
             throw new RuntimeException("Mentor does not have enough available slots. " +
-                    "Current: " + currentAssignedCount + ", Requested: " + requestedAssignments + 
+                    "Current: " + currentAssignedCount + ", Requested: " + requestedAssignments +
                     ", Maximum: " + mentor.getMaxStudents());
         }
 
         List<Student> updatedStudents = new ArrayList<>();
-        
+
         for (String studentId : studentIds) {
             Student student = getStudentById(studentId);
-            
+
             // Update student's mentor
             student.setAssignedMentor(mentor);
             student = studentRepository.save(student);
@@ -341,30 +345,30 @@ public class StudentServiceImpl implements StudentService {
                 mentor.getAssignedStudents().add(student);
             }
         }
-        
+
         // Save the mentor with updated student list
         mentorRepository.save(mentor);
-        
+
         return updatedStudents;
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = {"students", "analytics", "mentors"}, allEntries = true)
+    @CacheEvict(value = { "students", "analytics", "mentors" }, allEntries = true)
     public Student removeMentorFromStudent(String studentId) {
         Student student = getStudentById(studentId);
         Mentor mentor = student.getAssignedMentor();
-        
+
         if (mentor != null) {
             // Remove student from mentor's list
             mentor.getAssignedStudents().removeIf(s -> s.getId().equals(studentId));
             mentorRepository.save(mentor);
-            
+
             // Remove mentor from student
             student.setAssignedMentor(null);
             student = studentRepository.save(student);
         }
-        
+
         return student;
     }
 
@@ -478,7 +482,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    @CacheEvict(value = {"students", "analytics"}, allEntries = true)
+    @CacheEvict(value = { "students", "analytics" }, allEntries = true)
     public StudentProfileDTO updateStudentProfile(String studentId, StudentUpdateDTO updateDTO) {
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + studentId));
@@ -509,12 +513,12 @@ public class StudentServiceImpl implements StudentService {
         dto.setSemester(student.getSemester());
         dto.setAttendance(student.getAttendance());
         dto.setCgpa(student.getCgpa());
-        
+
         // Only set mentor ID instead of full mentor object
         if (student.getAssignedMentor() != null) {
             dto.setMentorId(student.getAssignedMentor().getId());
         }
-        
+
         return dto;
     }
 }

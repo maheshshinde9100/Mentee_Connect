@@ -4,6 +4,7 @@ import com.mahesh.mentee_connect.model.*;
 import com.mahesh.mentee_connect.repository.*;
 import com.mahesh.mentee_connect.service.AnalyticsService;
 import com.mahesh.mentee_connect.payload.response.AnalyticsResponse;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -29,14 +30,12 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     public MentorEngagementStats getMentorEngagementStats() {
         List<Mentor> mentors = mentorRepository.findAll();
         return new MentorEngagementStats(
-            mentors.stream()
-                .map(mentor -> new MentorStats(
-                    mentor.getId(),
-                    mentor.getFirstName() + " " + mentor.getLastName(),
-                    studentRepository.findByAssignedMentorId(mentor.getId())
-                ))
-                .collect(Collectors.toList())
-        );
+                mentors.stream()
+                        .map(mentor -> new MentorStats(
+                                mentor.getId(),
+                                mentor.getFirstName() + " " + mentor.getLastName(),
+                                studentRepository.findByAssignedMentorId(new ObjectId(mentor.getId()))))
+                        .collect(Collectors.toList()));
     }
 
     @Override
@@ -44,14 +43,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Cacheable(value = "analytics", key = "'studentProgress'")
     public List<StudentProgressStats> getStudentProgressStats() {
         return studentRepository.findAll().stream()
-            .map(student -> new StudentProgressStats(
-                student.getId(),
-                student.getFirstName() + " " + student.getLastName(),
-                student.getAssignedMentor() != null ? "ACTIVE" : "INACTIVE",
-                student.getAttendance(),
-                student.getCgpa()
-            ))
-            .collect(Collectors.toList());
+                .map(student -> new StudentProgressStats(
+                        student.getId(),
+                        student.getFirstName() + " " + student.getLastName(),
+                        student.getAssignedMentor() != null ? "ACTIVE" : "INACTIVE",
+                        student.getAttendance(),
+                        student.getCgpa()))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -71,8 +69,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .totalMentors(mentors.size())
                 .totalAdmins(admins.size())
                 .activeUsers(activeStudents + activeMentors + activeAdmins)
-                .inactiveUsers((students.size() + mentors.size() + admins.size()) - 
-                             (activeStudents + activeMentors + activeAdmins))
+                .inactiveUsers((students.size() + mentors.size() + admins.size()) -
+                        (activeStudents + activeMentors + activeAdmins))
                 .build();
     }
 
@@ -85,23 +83,20 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         // Students per department
         Map<String, Long> studentsPerDepartment = students.stream()
                 .collect(Collectors.groupingBy(
-                    student -> student.getCourse(),
-                    Collectors.counting()
-                ));
+                        student -> student.getCourse(),
+                        Collectors.counting()));
 
         // Mentors per department
         Map<String, Long> mentorsPerDepartment = mentors.stream()
                 .collect(Collectors.groupingBy(
-                    Mentor::getDepartment,
-                    Collectors.counting()
-                ));
+                        Mentor::getDepartment,
+                        Collectors.counting()));
 
         // Average CGPA by department
         Map<String, Double> averageCgpaByDepartment = students.stream()
                 .collect(Collectors.groupingBy(
-                    Student::getCourse,
-                    Collectors.averagingDouble(Student::getCgpa)
-                ));
+                        Student::getCourse,
+                        Collectors.averagingDouble(Student::getCgpa)));
 
         // Top performing departments (based on average CGPA)
         List<String> topPerformingDepartments = averageCgpaByDepartment.entrySet().stream()
@@ -126,16 +121,14 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         // Students by batch
         Map<String, Long> studentsByBatch = students.stream()
                 .collect(Collectors.groupingBy(
-                    Student::getBatch,
-                    Collectors.counting()
-                ));
+                        Student::getBatch,
+                        Collectors.counting()));
 
         // Students by semester
         Map<Integer, Long> studentsBySemester = students.stream()
                 .collect(Collectors.groupingBy(
-                    Student::getSemester,
-                    Collectors.counting()
-                ));
+                        Student::getSemester,
+                        Collectors.counting()));
 
         // Average CGPA
         double averageCgpa = students.stream()
@@ -147,16 +140,14 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         Map<String, Long> studentsPerMentor = students.stream()
                 .filter(s -> s.getAssignedMentor() != null)
                 .collect(Collectors.groupingBy(
-                    s -> s.getAssignedMentor().getMentorId(),
-                    Collectors.counting()
-                ));
+                        s -> s.getAssignedMentor().getMentorId(),
+                        Collectors.counting()));
 
         // Attendance by batch
         Map<String, Double> attendanceByBatch = students.stream()
                 .collect(Collectors.groupingBy(
-                    Student::getBatch,
-                    Collectors.averagingDouble(Student::getAttendance)
-                ));
+                        Student::getBatch,
+                        Collectors.averagingDouble(Student::getAttendance)));
 
         return AnalyticsResponse.StudentStats.builder()
                 .studentsByBatch(studentsByBatch)
@@ -175,16 +166,14 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         // Mentors by years of experience
         Map<String, Long> mentorsByExperience = mentors.stream()
                 .collect(Collectors.groupingBy(
-                    mentor -> experienceRange(mentor.getYearsOfExperience()),
-                    Collectors.counting()
-                ));
+                        mentor -> experienceRange(mentor.getYearsOfExperience()),
+                        Collectors.counting()));
 
         // Mentors by specialization
         Map<String, Long> mentorsBySpecialization = mentors.stream()
                 .collect(Collectors.groupingBy(
-                    Mentor::getSpecialization,
-                    Collectors.counting()
-                ));
+                        Mentor::getSpecialization,
+                        Collectors.counting()));
 
         // Average students per mentor
         double averageStudentsPerMentor = mentors.stream()
@@ -195,7 +184,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         // Top performing mentors
         List<AnalyticsResponse.MentorPerformance> topPerformingMentors = mentors.stream()
                 .map(this::calculateMentorPerformance)
-                .sorted(Comparator.comparingDouble(AnalyticsResponse.MentorPerformance::getAverageStudentCgpa).reversed())
+                .sorted(Comparator.comparingDouble(AnalyticsResponse.MentorPerformance::getAverageStudentCgpa)
+                        .reversed())
                 .limit(5)
                 .collect(Collectors.toList());
 
@@ -219,9 +209,12 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     private String experienceRange(int years) {
-        if (years < 2) return "0-2 years";
-        if (years < 5) return "2-5 years";
-        if (years < 10) return "5-10 years";
+        if (years < 2)
+            return "0-2 years";
+        if (years < 5)
+            return "2-5 years";
+        if (years < 10)
+            return "5-10 years";
         return "10+ years";
     }
 
@@ -231,7 +224,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .mapToDouble(Student::getCgpa)
                 .average()
                 .orElse(0.0);
-        
+
         double avgAttendance = assignedStudents.stream()
                 .mapToDouble(Student::getAttendance)
                 .average()
@@ -245,4 +238,4 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .averageStudentAttendance(avgAttendance)
                 .build();
     }
-} 
+}

@@ -10,6 +10,7 @@ import com.mahesh.mentee_connect.service.MentorService;
 import com.mahesh.mentee_connect.exception.ResourceNotFoundException;
 import com.mahesh.mentee_connect.exception.UnauthorizedException;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -102,34 +103,41 @@ public class MentorServiceImpl implements MentorService {
 
     private List<Student> safeFindStudentsByMentorId(String mentorId) {
         if (mentorId == null || mentorId.isBlank()) return Collections.emptyList();
-        Exception primaryEx = null;
+
+        ObjectId mentorOid;
         try {
-            List<Student> s = studentRepository.findByAssignedMentorId(mentorId);
-            if (s != null) {
-                log.debug("findByAssignedMentorId({}) returned {} students via @Query repo", mentorId, s.size());
+            mentorOid = new ObjectId(mentorId);
+        } catch (IllegalArgumentException e) {
+            log.error("safeFindStudentsByMentorId: '{}' is not a valid ObjectId", mentorId);
+            return Collections.emptyList();
+        }
+
+        // Primary path: repo @Query with ObjectId — Atlas-compatible dot-notation
+        try {
+            List<Student> s = studentRepository.findByAssignedMentorId(mentorOid);
+            if (s != null && !s.isEmpty()) {
+                log.debug("findByAssignedMentorId({}) returned {} students via repo @Query", mentorId, s.size());
                 return s;
             }
+            log.debug("findByAssignedMentorId({}) returned empty, trying MongoTemplate fallback", mentorId);
         } catch (Exception ex) {
-            primaryEx = ex;
-            log.warn("StudentRepository.findByAssignedMentorId({}) failed on @Query path, falling back to MongoTemplate. Ex={}: {}",
+            log.warn("StudentRepository.findByAssignedMentorId({}) failed, falling back. {}: {}",
                     mentorId, ex.getClass().getSimpleName(), ex.getMessage());
         }
+
+        // Fallback: Atlas-compatible dot-notation via Criteria (no $ref operator)
         try {
-            Document dbo = new Document("assignedMentor", new Document("$ref", "mentors")
-                    .append("$id", new org.bson.types.ObjectId(mentorId)));
-            List<Student> fallback = mongoTemplate.find(new BasicQuery(dbo), Student.class);
-            log.info("MongoTemplate fallback find for mentorId={} returned {} students", mentorId,
-                    fallback == null ? 0 : fallback.size());
+            org.springframework.data.mongodb.core.query.Query q =
+                new org.springframework.data.mongodb.core.query.Query(
+                    org.springframework.data.mongodb.core.query.Criteria
+                        .where("assignedMentor.$id").is(mentorOid));
+            List<Student> fallback = mongoTemplate.find(q, Student.class);
+            int found = fallback == null ? 0 : fallback.size();
+            log.info("MongoTemplate fallback for mentorId={} returned {} students", mentorId, found);
             return fallback == null ? Collections.emptyList() : fallback;
         } catch (Exception fx) {
-            if (primaryEx != null) {
-                log.error("Both repo and MongoTemplate lookup failed for mentorId={}. Primary: {} {}. Fallback: {} {}. Returning empty list.",
-                        mentorId, primaryEx.getClass().getSimpleName(), primaryEx.getMessage(),
-                        fx.getClass().getSimpleName(), fx.getMessage(), fx);
-            } else {
-                log.error("MongoTemplate fallback failed for mentorId={}. {}: {}. Returning empty list.",
-                        mentorId, fx.getClass().getSimpleName(), fx.getMessage(), fx);
-            }
+            log.error("MongoTemplate fallback failed for mentorId={}: {} - {}",
+                    mentorId, fx.getClass().getSimpleName(), fx.getMessage(), fx);
             return Collections.emptyList();
         }
     }
@@ -248,7 +256,8 @@ public class MentorServiceImpl implements MentorService {
     @Transactional(readOnly = true)
     public int getAssignedStudentsCount(String mentorId) {
         try {
-            long c = studentRepository.countByAssignedMentorId(mentorId);
+            ObjectId oid = new ObjectId(mentorId);
+            long c = studentRepository.countByAssignedMentorId(oid);
             return (int) c;
         } catch (Exception ex) {
             log.warn("countByAssignedMentorId({}) failed: {}. Falling back to list size.",

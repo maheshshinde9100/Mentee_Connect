@@ -2,6 +2,7 @@
 package com.mahesh.mentee_connect.repository;
 
 import com.mahesh.mentee_connect.model.Student;
+import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -14,14 +15,16 @@ public interface StudentRepository extends MongoRepository<Student, String> {
     Optional<Student> findByUsername(String username);
     Optional<Student> findByStudentId(String studentId);
 
-    @Query("{'assignedMentor' : { '$ref' : 'mentors' , '$id' : { '$oid' : ?0 } }}")
-    List<Student> findByAssignedMentorId(String mentorId);
+    // Atlas-compatible: query DBRef using dot-notation with ObjectId parameter.
+    // Spring Data MongoDB converts ObjectId directly — no $oid shell syntax needed.
+    @Query(value = "{ 'assignedMentor.$id' : ?0 }")
+    List<Student> findByAssignedMentorId(ObjectId mentorId);
 
-    @Query("{'assignedMentor' : { '$ref' : 'mentors' , '$id' : { '$oid' : ?0 } }}")
-    Page<Student> findByAssignedMentorId(String mentorId, Pageable pageable);
+    @Query(value = "{ 'assignedMentor.$id' : ?0 }")
+    Page<Student> findByAssignedMentorId(ObjectId mentorId, Pageable pageable);
 
-    @Query("{'assignedMentor.$id': { $oid: ?0 }}")
-    long countByAssignedMentorId(String mentorId);
+    @Query(value = "{ 'assignedMentor.$id' : ?0 }", count = true)
+    long countByAssignedMentorId(ObjectId mentorId);
 
     List<Student> findByFirstNameContainingOrLastNameContainingOrEmailContaining(
         String firstName, String lastName, String email);
