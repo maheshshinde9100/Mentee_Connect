@@ -5,6 +5,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.index.Indexed;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -13,6 +15,7 @@ public class MenteeAttendance {
     
     @Id
     private String id;
+    @Field(targetType = FieldType.OBJECT_ID)
     @Indexed
     private String mentorId;
     @Indexed
