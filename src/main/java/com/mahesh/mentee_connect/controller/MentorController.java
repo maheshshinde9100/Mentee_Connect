@@ -75,6 +75,14 @@ public class MentorController {
         return ResponseEntity.ok(mentorService.getMentorStudents(id));
     }
 
+    @GetMapping("/me/students")
+    @PreAuthorize("hasRole('MENTOR')")
+    @Operation(summary = "Get current mentor's students", description = "Get all students assigned to the current logged-in mentor")
+    public ResponseEntity<List<StudentMentorDTO>> getMyStudents() {
+        Mentor currentMentor = mentorService.getCurrentMentor();
+        return ResponseEntity.ok(mentorService.getMentorStudents(currentMentor.getId()));
+    }
+
     @GetMapping("/me")
     @PreAuthorize("hasRole('MENTOR')")
     @Operation(summary = "Get current mentor", description = "Get current logged-in mentor's details")

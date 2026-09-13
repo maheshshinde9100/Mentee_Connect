@@ -51,6 +51,19 @@ public class MenteeTaskController {
         return ResponseEntity.ok(menteeTaskService.getTasksByMentor(mentorId));
     }
 
+    @GetMapping("/me/tasks")
+    @PreAuthorize("hasRole('MENTOR')")
+    @Operation(summary = "Get current mentor's tasks", description = "Get all tasks created by the current logged-in mentor")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Tasks retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<List<MenteeTask>> getMyTasks(
+            @Autowired com.mahesh.mentee_connect.service.MentorService mentorService) {
+        com.mahesh.mentee_connect.model.Mentor currentMentor = mentorService.getCurrentMentor();
+        return ResponseEntity.ok(menteeTaskService.getTasksByMentor(currentMentor.getId()));
+    }
+
     @GetMapping("/{mentorId}/students/{studentId}/tasks")
     @PreAuthorize("hasRole('MENTOR') and @securityService.isCurrentUser(#mentorId)")
     @Operation(summary = "Get student tasks", description = "Get tasks for a specific student assigned by a mentor")
