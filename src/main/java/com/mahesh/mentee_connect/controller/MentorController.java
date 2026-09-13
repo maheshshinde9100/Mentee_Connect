@@ -7,10 +7,12 @@ import com.mahesh.mentee_connect.dto.MenteeUpdateRequest;
 import com.mahesh.mentee_connect.dto.MentorDTO;
 import com.mahesh.mentee_connect.dto.MentorConverter;
 import com.mahesh.mentee_connect.dto.StudentMentorDTO;
+import com.mahesh.mentee_connect.security.services.SecurityService;
 import org.springframework.data.domain.Page;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +31,9 @@ public class MentorController {
     @Autowired
     private MentorConverter mentorConverter;
 
+    @Autowired
+    private SecurityService securityService;
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create mentor", description = "Create a new mentor (Admin only)")
@@ -37,9 +42,12 @@ public class MentorController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isCurrentUser(#id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MENTOR')")
     @Operation(summary = "Update mentor", description = "Update an existing mentor (Admin or self)")
     public ResponseEntity<Mentor> updateMentor(@PathVariable String id, @Valid @RequestBody Mentor mentor) {
+        if (!securityService.isCurrentUserAdmin() && !securityService.isCurrentUser(id)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(mentorService.updateMentor(id, mentor));
     }
 
@@ -52,9 +60,15 @@ public class MentorController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isCurrentUser(#id) or hasRole('STUDENT')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MENTOR') or hasRole('STUDENT')")
     @Operation(summary = "Get mentor", description = "Get mentor by ID (Admin, self, or student)")
     public ResponseEntity<Mentor> getMentor(@PathVariable String id) {
+        if (!securityService.isCurrentUserAdmin() && !securityService.isCurrentUser(id)) {
+            // Students can view mentors, so we allow that without additional checks
+            if (!securityService.isCurrentUserStudent()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
         return ResponseEntity.ok(mentorService.getMentorById(id));
     }
 
@@ -69,9 +83,12 @@ public class MentorController {
     }
 
     @GetMapping("/{id}/students")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isCurrentUser(#id)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MENTOR')")
     @Operation(summary = "Get mentor's students", description = "Get all students assigned to a mentor (Admin or self)")
     public ResponseEntity<List<StudentMentorDTO>> getMentorStudents(@PathVariable String id) {
+        if (!securityService.isCurrentUserAdmin() && !securityService.isCurrentUser(id)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(mentorService.getMentorStudents(id));
     }
 
