@@ -18,13 +18,8 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // Spring WebSocket endpoints registered via WebSocketConfigurer are at ROOT level
-        // They are NOT affected by server.servlet.context-path=/api
-        // Register at /signal - accessible at ws://localhost:8080/signal
-        // Also register at /api/signal for compatibility
-        registry.addHandler(signalingHandler, "/signal")
-                .setAllowedOrigins("http://localhost:3000", "https://menteeconnect.vercel.app")
-                .setAllowedOriginPatterns("*");
+        // Register at /api/signal to work within the context-path=/api
+        // This ensures WebSocket connections work properly on Render and other platforms
         registry.addHandler(signalingHandler, "/api/signal")
                 .setAllowedOrigins("http://localhost:3000", "https://menteeconnect.vercel.app")
                 .setAllowedOriginPatterns("*");
