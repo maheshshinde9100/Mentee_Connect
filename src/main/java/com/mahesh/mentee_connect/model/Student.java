@@ -4,6 +4,7 @@ package com.mahesh.mentee_connect.model;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.index.Indexed;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -28,6 +29,7 @@ public class Student extends User {
     private String profilePhoto;
     
     @DBRef(lazy = true)
+    @JsonIgnore
     private Mentor assignedMentor;
     
     private double attendance;

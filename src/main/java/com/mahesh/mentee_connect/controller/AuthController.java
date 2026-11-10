@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import com.mahesh.mentee_connect.payload.request.LoginRequest;
 import com.mahesh.mentee_connect.payload.request.RefreshTokenRequest;
+import com.mahesh.mentee_connect.payload.request.RegisterRequest;
 import com.mahesh.mentee_connect.payload.response.AuthResponse;
 import com.mahesh.mentee_connect.payload.response.ErrorResponse;
 import com.mahesh.mentee_connect.payload.response.JwtResponse;
@@ -45,6 +46,18 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<JwtResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         JwtResponse response = authService.authenticateUser(loginRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Register user", description = "Create a new student or mentor account and return a JWT token")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully registered",
+                    content = @Content(schema = @Schema(implementation = JwtResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request or email already in use")
+    })
+    @PostMapping("/register")
+    public ResponseEntity<JwtResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
+        JwtResponse response = authService.registerUser(registerRequest);
         return ResponseEntity.ok(response);
     }
 
