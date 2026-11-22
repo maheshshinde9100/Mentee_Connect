@@ -5,10 +5,12 @@ import com.mahesh.mentee_connect.dto.VideoCallDtos.MentorVideoCallDTO;
 import com.mahesh.mentee_connect.dto.VideoCallDtos.VideoCallStartRequest;
 import com.mahesh.mentee_connect.model.VideoCallRecord;
 import com.mahesh.mentee_connect.security.services.SecurityService;
+import com.mahesh.mentee_connect.service.AuthService;
 import com.mahesh.mentee_connect.service.VideoCallService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,50 @@ public class VideoCallController {
 
     @Autowired
     private SecurityService securityService;
+
+    @Autowired
+    private AuthService authService;
+
+    @PostMapping("/video-calls/start")
+    @PreAuthorize("hasRole('MENTOR') or hasRole('STUDENT')")
+    @Operation(summary = "Start a video call", description = "Create a call record for the current mentor or student")
+    public ResponseEntity<?> startCallForCurrentUser(@RequestBody VideoCallStartRequest request) {
+        String userId = authService.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            return ResponseEntity.ok(videoCallService.startCallForUser(userId, request));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/video-calls/{callId}/end")
+    @PreAuthorize("hasRole('MENTOR') or hasRole('STUDENT')")
+    @Operation(summary = "End a video call", description = "Mark a call as ended (any participant)")
+    public ResponseEntity<?> endCallForCurrentUser(@PathVariable String callId) {
+        String userId = authService.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            return ResponseEntity.ok(videoCallService.endCallByParticipant(userId, callId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/video-calls/me")
+    @PreAuthorize("hasRole('MENTOR') or hasRole('STUDENT')")
+    @Operation(summary = "Get my video calls", description = "List calls where the current user was a participant")
+    public ResponseEntity<List<AdminVideoCallDTO>> getMyCalls() {
+        String userId = authService.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(videoCallService.getForUser(userId));
+    }
 
     @PostMapping("/mentors/{mentorId}/video-calls/start")
     @PreAuthorize("hasRole('MENTOR') and @securityService.isCurrentUser(#mentorId)")
@@ -61,4 +107,3 @@ public class VideoCallController {
         return ResponseEntity.ok(videoCallService.getForMentor(mentorId));
     }
 }
-

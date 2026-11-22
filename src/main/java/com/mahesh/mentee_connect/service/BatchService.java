@@ -46,14 +46,16 @@ public class BatchService {
     public Batch assignMentorToBatch(String batchId, String mentorId) {
         Batch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch", "id", batchId));
-        Mentor mentor = mentorRepository.findById(mentorId)
+        mentorRepository.findById(mentorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mentor", "id", mentorId));
-        
-        // Add the mentor ID to the mentorsAssigned list if not already present
+
+        if (batch.getMentorsAssigned() == null) {
+            batch.setMentorsAssigned(new ArrayList<>());
+        }
         if (!batch.getMentorsAssigned().contains(mentorId)) {
             batch.getMentorsAssigned().add(mentorId);
         }
-        
+
         return batchRepository.save(batch);
     }
 
@@ -68,29 +70,48 @@ public class BatchService {
     public Batch updateBatch(String id, Batch batchDetails) {
         Batch batch = batchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch", "id", id));
-        
-        batch.setBatchName(batchDetails.getBatchName());
-        batch.setStartDate(batchDetails.getStartDate());
-        batch.setEndDate(batchDetails.getEndDate());
-        batch.setCourse(batchDetails.getCourse());
-        
+
+        if (batchDetails.getBatchName() != null) {
+            batch.setBatchName(batchDetails.getBatchName());
+        }
+        if (batchDetails.getStartDate() != null) {
+            batch.setStartDate(batchDetails.getStartDate());
+        }
+        if (batchDetails.getEndDate() != null) {
+            batch.setEndDate(batchDetails.getEndDate());
+        }
+        if (batchDetails.getCourse() != null) {
+            batch.setCourse(batchDetails.getCourse());
+        }
+
         // Update mentors assigned if provided
         if (batchDetails.getMentorsAssigned() != null) {
             batch.setMentorsAssigned(batchDetails.getMentorsAssigned());
         }
-        
+
         // Update students assigned if provided
         if (batchDetails.getStudentsAssigned() != null) {
             batch.setStudentsAssigned(batchDetails.getStudentsAssigned());
         }
-        
+
         return batchRepository.save(batch);
+    }
+
+    @Transactional
+    public void deleteBatch(String id) {
+        Batch batch = batchRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch", "id", id));
+        batchRepository.delete(batch);
     }
 
     @Transactional
     public List<Student> assignStudentsToBatch(String batchId, List<String> studentIds) {
         Batch batch = batchRepository.findById(batchId)
             .orElseThrow(() -> new RuntimeException("Batch not found with id: " + batchId));
+
+        if (batch.getStudentsAssigned() == null) {
+            batch.setStudentsAssigned(new ArrayList<>());
+        }
 
         List<Student> students = new ArrayList<>();
         for (String studentId : studentIds) {
@@ -145,7 +166,7 @@ public class BatchService {
         }
         
         // Set the mentors
-        batch.setMentorsAssigned(mentorIds);
+        batch.setMentorsAssigned(mentorIds != null ? mentorIds : new ArrayList<>());
         
         // Save and return the updated batch
         return batchRepository.save(batch);

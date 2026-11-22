@@ -11,9 +11,15 @@ public interface VideoCallService {
 
     VideoCallRecord startCall(VideoCallStartRequest request);
 
+    VideoCallRecord startCallForUser(String userId, VideoCallStartRequest request);
+
     VideoCallRecord endCall(String mentorId, String callId);
 
+    VideoCallRecord endCallByParticipant(String userId, String callId);
+
     List<AdminVideoCallDTO> getAllForAdmin();
+
+    List<AdminVideoCallDTO> getForUser(String userId);
 
     List<MentorVideoCallDTO> getForMentor(String mentorId);
 }

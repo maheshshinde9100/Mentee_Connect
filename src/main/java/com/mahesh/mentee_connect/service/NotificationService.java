@@ -8,5 +8,10 @@ public interface NotificationService {
     List<Notification> getNotificationsByRecipientType(String recipientType);
     List<Notification> getNotificationsByRecipientId(String recipientId);
     Notification markAsRead(String notificationId);
+    void deleteNotification(String notificationId);
     List<Notification> getUnreadNotifications(String recipientId);
-} 
+    List<Notification> getNotificationsForUser(String userId, String roleType);
+    List<Notification> getUnreadForUser(String userId, String roleType);
+    long countUnreadForUser(String userId, String roleType);
+    int markAllAsReadForUser(String userId, String roleType);
+}

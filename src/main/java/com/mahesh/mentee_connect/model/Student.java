@@ -34,6 +34,8 @@ public class Student extends User {
     
     private double attendance;
     private double cgpa;
+
+    private List<StudentSkill> skills = new ArrayList<>();
     
     public Student(String username, String email, String password, String firstName, 
                   String lastName, String phoneNumber, String studentId, 

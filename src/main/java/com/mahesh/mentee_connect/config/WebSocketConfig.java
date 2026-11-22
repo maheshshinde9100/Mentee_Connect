@@ -18,10 +18,9 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // Register at /api/signal to work within the context-path=/api
-        // This ensures WebSocket connections work properly on Render and other platforms
-        registry.addHandler(signalingHandler, "/api/signal")
-                .setAllowedOrigins("http://localhost:3000", "https://menteeconnect.vercel.app")
+        // The servlet context-path is already /api, so registering "/signal" exposes
+        // the endpoint at /api/signal — matching REACT_APP_SIGNAL_URL on the client.
+        registry.addHandler(signalingHandler, "/signal")
                 .setAllowedOriginPatterns("*");
     }
 }

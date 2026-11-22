@@ -2,7 +2,10 @@ package com.mahesh.mentee_connect.websocket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.mahesh.mentee_connect.security.jwt.JwtUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -12,21 +15,23 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
- * Lightweight signaling handler for WebRTC calls.
- * Routes messages based on "to" or "targets" fields so mentors can invite specific mentees.
+ * WebRTC signaling relay. Every message is routed to an explicit recipient
+ * ("to" or "targets"); nothing is broadcast implicitly.
  */
 @Component
 public class SignalingHandler extends TextWebSocketHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(SignalingHandler.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    // userId -> session
     private static final Map<String, WebSocketSession> SESSIONS = new ConcurrentHashMap<>();
 
     @Autowired
@@ -34,147 +39,142 @@ public class SignalingHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        String userId = extractUserId(session.getUri());
-        String token = extractToken(session.getUri());
-        
-        // Validate JWT token if provided
-        if (token != null && !token.isEmpty()) {
-            try {
-                if (!jwtUtils.validateJwtToken(token)) {
-                    try {
-                        session.close();
-                    } catch (IOException e) {
-                        System.err.println("Error closing session: " + e.getMessage());
-                    }
-                    return;
-                }
-                // Extract userId from token for proper routing
-                String tokenUserId = jwtUtils.getUserIdFromJwtToken(token);
-                if (tokenUserId != null && !tokenUserId.isEmpty()) {
-                    userId = tokenUserId; // Use token userId for consistency with database IDs
-                }
-            } catch (Exception e) {
-                try {
-                    session.close();
-                } catch (IOException ioException) {
-                    System.err.println("Error closing session: " + ioException.getMessage());
-                }
+        String token = extractQueryParam(session.getUri(), "token");
+        if (token == null || token.isBlank()) {
+            log.warn("Signal connection rejected: missing token");
+            closeQuietly(session);
+            return;
+        }
+
+        String userId;
+        try {
+            if (!jwtUtils.validateJwtToken(token)) {
+                log.warn("Signal connection rejected: invalid token");
+                closeQuietly(session);
                 return;
             }
+            userId = jwtUtils.getUserIdFromJwtToken(token);
+        } catch (Exception e) {
+            log.warn("Signal connection rejected: {}", e.getMessage());
+            closeQuietly(session);
+            return;
         }
-        
-        if (userId != null && !userId.isEmpty()) {
-            SESSIONS.put(userId, session);
-            session.getAttributes().put("userId", userId);
-        } else {
-            try {
-                session.close();
-            } catch (IOException e) {
-                System.err.println("Error closing session: " + e.getMessage());
-            }
+
+        if (userId == null || userId.isBlank()) {
+            closeQuietly(session);
+            return;
         }
+
+        session.getAttributes().put("userId", userId);
+        WebSocketSession previous = SESSIONS.put(userId, session);
+        if (previous != null && previous.isOpen() && previous != session) {
+            closeQuietly(previous);
+        }
+        log.info("Signal connected for user {}", userId);
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        JsonNode json = MAPPER.readTree(message.getPayload());
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         String senderId = (String) session.getAttributes().get("userId");
+        if (senderId == null) {
+            closeQuietly(session);
+            return;
+        }
 
-        // Route directly to "to"
+        JsonNode json;
+        try {
+            json = MAPPER.readTree(message.getPayload());
+        } catch (Exception e) {
+            log.debug("Ignoring malformed signal from {}: {}", senderId, e.getMessage());
+            return;
+        }
+
+        ObjectNode outgoing = json.isObject() ? (ObjectNode) json : MAPPER.createObjectNode().set("payload", json);
+        // Never trust a client-supplied "from" — always stamp the authenticated sender.
+        outgoing.put("from", senderId);
+
         if (json.hasNonNull("to")) {
-            String target = json.get("to").asText();
-            sendTo(target, json);
+            sendTo(json.get("to").asText(), outgoing);
             return;
         }
 
-        // Route to list of targets
         if (json.has("targets") && json.get("targets").isArray()) {
-            List<String> targets = MAPPER.convertValue(json.get("targets"), MAPPER.getTypeFactory().constructCollectionType(List.class, String.class));
-            for (String t : targets) {
-                sendTo(t, json);
+            List<String> targets = MAPPER.convertValue(
+                    json.get("targets"),
+                    MAPPER.getTypeFactory().constructCollectionType(List.class, String.class));
+            for (String target : targets) {
+                if (target != null && !target.isBlank()) {
+                    sendTo(target, outgoing);
+                }
             }
             return;
         }
 
-        // Broadcast to everyone else
-        for (Map.Entry<String, WebSocketSession> entry : SESSIONS.entrySet()) {
-            if (!entry.getKey().equals(senderId)) {
-                send(entry.getValue(), json);
-            }
+        if (json.path("broadcast").asBoolean(false)) {
+            SESSIONS.forEach((id, ws) -> {
+                if (!id.equals(senderId)) {
+                    send(ws, outgoing);
+                }
+            });
+            return;
         }
+
+        log.debug("Ignoring unroutable signal '{}' from {}", json.path("type").asText("?"), senderId);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = (String) session.getAttributes().get("userId");
         if (userId != null) {
-            SESSIONS.remove(userId);
-            // System.out.println("WS disconnected: " + userId);
+            SESSIONS.remove(userId, session);
+            log.info("Signal disconnected for user {}", userId);
         }
     }
 
     private void sendTo(String userId, JsonNode message) {
         WebSocketSession target = SESSIONS.get(userId);
-        if (target != null && target.isOpen()) {
-            send(target, message);
+        if (target == null) {
+            log.debug("Signal target {} is not connected", userId);
+            return;
         }
+        send(target, message);
     }
 
     private void send(WebSocketSession session, JsonNode message) {
+        if (session == null || !session.isOpen()) {
+            return;
+        }
         try {
-            session.sendMessage(new TextMessage(MAPPER.writeValueAsString(message)));
+            String payload = MAPPER.writeValueAsString(message);
+            synchronized (session) {
+                session.sendMessage(new TextMessage(payload));
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            log.debug("Failed to deliver signal to {}: {}", session.getId(), e.getMessage());
         }
     }
 
-    private String extractUserId(URI uri) {
+    private String extractQueryParam(URI uri, String name) {
         if (uri == null || uri.getQuery() == null) {
             return null;
         }
-        try {
-            Map<String, String> params = List.of(uri.getQuery().split("&")).stream()
-                    .map(p -> p.split("=", 2))
-                    .filter(arr -> arr.length == 2)
-                    .collect(Collectors.toMap(
-                            arr -> arr[0],
-                            arr -> {
-                                try {
-                                    return java.net.URLDecoder.decode(arr[1], "UTF-8");
-                                } catch (Exception e) {
-                                    return arr[1];
-                                }
-                            }
-                    ));
-            return params.get("userId");
-        } catch (Exception e) {
-            System.err.println("WS: Error extracting userId: " + e.getMessage());
-            return null;
+        for (String pair : uri.getQuery().split("&")) {
+            String[] parts = pair.split("=", 2);
+            if (parts.length == 2 && parts[0].equals(name)) {
+                try {
+                    return URLDecoder.decode(parts[1], StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                    return parts[1];
+                }
+            }
         }
+        return null;
     }
 
-    private String extractToken(URI uri) {
-        if (uri == null || uri.getQuery() == null) {
-            return null;
-        }
+    private void closeQuietly(WebSocketSession session) {
         try {
-            Map<String, String> params = List.of(uri.getQuery().split("&")).stream()
-                    .map(p -> p.split("=", 2))
-                    .filter(arr -> arr.length == 2)
-                    .collect(Collectors.toMap(
-                            arr -> arr[0],
-                            arr -> {
-                                try {
-                                    return java.net.URLDecoder.decode(arr[1], "UTF-8");
-                                } catch (Exception e) {
-                                    return arr[1];
-                                }
-                            }
-                    ));
-            return params.get("token");
-        } catch (Exception e) {
-            return null;
+            session.close(CloseStatus.POLICY_VIOLATION);
+        } catch (IOException ignored) {
         }
     }
 }
-

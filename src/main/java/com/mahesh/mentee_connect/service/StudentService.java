@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
 import com.mahesh.mentee_connect.model.Student;
+import com.mahesh.mentee_connect.model.StudentSkill;
 import com.mahesh.mentee_connect.model.Mentor;
 import com.mahesh.mentee_connect.dto.MentorResponse;
 import com.mahesh.mentee_connect.dto.ProgressReport;
@@ -48,6 +49,11 @@ public interface StudentService {
     List<CertificateDTO> getStudentCertificates(String studentId);
     void deleteCertificate(String studentId, String certificateId);
     
+    // Skills management
+    List<StudentSkill> getStudentSkills(String studentId);
+    StudentSkill addStudentSkill(String studentId, StudentSkill skill);
+    void deleteStudentSkill(String studentId, String skillId);
+
     // Student profile methods with pagination
     Page<StudentProfileDTO> getStudentProfiles(int page, int size);
     StudentProfileDTO getStudentProfileById(String id);

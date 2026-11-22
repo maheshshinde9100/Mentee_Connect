@@ -9,6 +9,8 @@ public interface VideoCallRecordRepository extends MongoRepository<VideoCallReco
 
     List<VideoCallRecord> findByMentorIdOrderByStartTimeDesc(String mentorId);
 
+    List<VideoCallRecord> findByMenteeIdsContainingOrderByStartTimeDesc(String menteeId);
+
     List<VideoCallRecord> findAllByOrderByStartTimeDesc();
 }
 

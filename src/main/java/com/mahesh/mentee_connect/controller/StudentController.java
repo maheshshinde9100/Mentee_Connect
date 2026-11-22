@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.mahesh.mentee_connect.dto.*;
 import com.mahesh.mentee_connect.model.Student;
+import com.mahesh.mentee_connect.model.StudentSkill;
 import com.mahesh.mentee_connect.service.StudentService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @RestController
-@RequestMapping({"/students", "/api/students"})
+@RequestMapping("/students")
 @Tag(name = "Students", description = "Student management APIs")
 public class StudentController {
 
@@ -198,6 +199,35 @@ public class StudentController {
             Authentication authentication) {
         String studentId = ((Student) studentService.getCurrentStudent(authentication)).getId();
         studentService.deleteCertificate(studentId, certificateId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me/skills")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Get my skills", description = "List skills saved on the current student's profile")
+    public ResponseEntity<List<StudentSkill>> getMySkills(Authentication authentication) {
+        String studentId = studentService.getCurrentStudent(authentication).getId();
+        return ResponseEntity.ok(studentService.getStudentSkills(studentId));
+    }
+
+    @PostMapping("/me/skills")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Add a skill", description = "Add a skill to the current student's profile")
+    public ResponseEntity<StudentSkill> addMySkill(
+            @RequestBody StudentSkill skill,
+            Authentication authentication) {
+        String studentId = studentService.getCurrentStudent(authentication).getId();
+        return ResponseEntity.ok(studentService.addStudentSkill(studentId, skill));
+    }
+
+    @DeleteMapping("/me/skills/{skillId}")
+    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "Delete a skill", description = "Remove a skill from the current student's profile")
+    public ResponseEntity<Void> deleteMySkill(
+            @PathVariable String skillId,
+            Authentication authentication) {
+        String studentId = studentService.getCurrentStudent(authentication).getId();
+        studentService.deleteStudentSkill(studentId, skillId);
         return ResponseEntity.noContent().build();
     }
 

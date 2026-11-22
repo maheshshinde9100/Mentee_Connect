@@ -71,6 +71,13 @@ public class BatchController {
         return ResponseEntity.ok(batchService.updateBatch(id, batch));
     }
 
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete batch", description = "Delete a batch by its ID (Admin only)")
+    public ResponseEntity<Void> deleteBatch(@PathVariable String id) {
+        batchService.deleteBatch(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/assign-mentor")
     public ResponseEntity<Batch> assignMentorToBatch(
             @PathVariable String id,

@@ -1,6 +1,7 @@
 package com.mahesh.mentee_connect.service.impl;
 
 import com.mahesh.mentee_connect.model.Student;
+import com.mahesh.mentee_connect.model.StudentSkill;
 import com.mahesh.mentee_connect.model.Mentor;
 import com.mahesh.mentee_connect.model.MenteeTask;
 import com.mahesh.mentee_connect.model.MenteeAttendance;
@@ -466,6 +467,47 @@ public class StudentServiceImpl implements StudentService {
         dto.setDescription(certificate.getDescription());
         dto.setStatus(certificate.getStatus());
         return dto;
+    }
+
+    @Override
+    public List<StudentSkill> getStudentSkills(String studentId) {
+        Student student = getStudentById(studentId);
+        return student.getSkills() == null ? new ArrayList<>() : new ArrayList<>(student.getSkills());
+    }
+
+    @Override
+    public StudentSkill addStudentSkill(String studentId, StudentSkill skill) {
+        if (skill == null || skill.getName() == null || skill.getName().isBlank()) {
+            throw new IllegalArgumentException("Skill name is required");
+        }
+        Student student = getStudentById(studentId);
+        StudentSkill entry = new StudentSkill(
+                skill.getId() == null || skill.getId().isBlank() ? UUID.randomUUID().toString() : skill.getId(),
+                skill.getName().trim(),
+                skill.getProficiency() == null || skill.getProficiency().isBlank()
+                        ? "BEGINNER"
+                        : skill.getProficiency().trim().toUpperCase(),
+                skill.getDescription());
+        List<StudentSkill> skills = student.getSkills() == null ? new ArrayList<>() : student.getSkills();
+        skills.add(entry);
+        student.setSkills(skills);
+        studentRepository.save(student);
+        return entry;
+    }
+
+    @Override
+    public void deleteStudentSkill(String studentId, String skillId) {
+        Student student = getStudentById(studentId);
+        List<StudentSkill> skills = student.getSkills();
+        if (skills == null) {
+            throw new ResourceNotFoundException("Skill not found with id: " + skillId);
+        }
+        boolean removed = skills.removeIf(skill -> skillId.equals(skill.getId()));
+        if (!removed) {
+            throw new ResourceNotFoundException("Skill not found with id: " + skillId);
+        }
+        student.setSkills(skills);
+        studentRepository.save(student);
     }
 
     @Override

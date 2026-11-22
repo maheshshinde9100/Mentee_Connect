@@ -8,6 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 public class NotificationServiceImpl implements NotificationService {
@@ -67,6 +70,15 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional
+    public void deleteNotification(String notificationId) {
+        if (!notificationRepository.existsById(notificationId)) {
+            throw new RuntimeException("Notification not found");
+        }
+        notificationRepository.deleteById(notificationId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<Notification> getUnreadNotifications(String recipientId) {
         // Get unread notifications specifically for this user
@@ -94,5 +106,66 @@ public class NotificationServiceImpl implements NotificationService {
         allUnread.addAll(roleUnread);
         
         return allUnread;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Notification> getNotificationsForUser(String userId, String roleType) {
+        Map<String, Notification> unique = new LinkedHashMap<>();
+        addAll(unique, notificationRepository.findByRecipientId(userId));
+        addAll(unique, notificationRepository.findByRecipientType("ALL"));
+        if (roleType != null && !roleType.isBlank()) {
+            addAll(unique, notificationRepository.findByRecipientType(roleType));
+        }
+
+        List<Notification> result = new ArrayList<>(unique.values());
+        result.sort(Comparator.comparing(
+                Notification::getCreatedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Notification> getUnreadForUser(String userId, String roleType) {
+        Map<String, Notification> unique = new LinkedHashMap<>();
+        addAll(unique, notificationRepository.findByRecipientIdAndIsReadFalse(userId));
+        addAll(unique, notificationRepository.findByRecipientTypeAndIsReadFalse("ALL"));
+        if (roleType != null && !roleType.isBlank()) {
+            addAll(unique, notificationRepository.findByRecipientTypeAndIsReadFalse(roleType));
+        }
+        return new ArrayList<>(unique.values());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUnreadForUser(String userId, String roleType) {
+        return getUnreadForUser(userId, roleType).size();
+    }
+
+    @Override
+    @Transactional
+    public int markAllAsReadForUser(String userId, String roleType) {
+        List<Notification> unread = getUnreadForUser(userId, roleType);
+        for (Notification notification : unread) {
+            notification.setRead(true);
+        }
+        notificationRepository.saveAll(unread);
+        return unread.size();
+    }
+
+    private void addAll(Map<String, Notification> target, List<Notification> source) {
+        if (source == null) {
+            return;
+        }
+        for (Notification notification : source) {
+            if (notification == null) {
+                continue;
+            }
+            String key = notification.getId() != null
+                    ? notification.getId()
+                    : notification.getTitle() + "|" + notification.getCreatedAt();
+            target.putIfAbsent(key, notification);
+        }
     }
 } 
