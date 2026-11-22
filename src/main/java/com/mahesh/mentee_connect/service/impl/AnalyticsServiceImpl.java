@@ -4,16 +4,19 @@ import com.mahesh.mentee_connect.model.*;
 import com.mahesh.mentee_connect.repository.*;
 import com.mahesh.mentee_connect.service.AnalyticsService;
 import com.mahesh.mentee_connect.payload.response.AnalyticsResponse;
-import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class AnalyticsServiceImpl implements AnalyticsService {
+
+    private static final String UNASSIGNED = "Unassigned";
+    private static final String UNSPECIFIED = "Not specified";
 
     @Autowired
     private StudentRepository studentRepository;
@@ -28,13 +31,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Transactional(readOnly = true)
     @Cacheable(value = "analytics", key = "'mentorEngagement'")
     public MentorEngagementStats getMentorEngagementStats() {
-        List<Mentor> mentors = mentorRepository.findAll();
+        Map<String, List<Student>> studentsByMentor = groupStudentsByMentor(studentRepository.findAll());
         return new MentorEngagementStats(
-                mentors.stream()
+                mentorRepository.findAll().stream()
                         .map(mentor -> new MentorStats(
-                                mentor.getId(),
-                                mentor.getFirstName() + " " + mentor.getLastName(),
-                                studentRepository.findByAssignedMentorId(new ObjectId(mentor.getId()))))
+                                mentorKey(mentor),
+                                displayName(mentor.getFirstName(), mentor.getLastName()),
+                                studentsByMentor.getOrDefault(mentor.getId(), Collections.emptyList())))
                         .collect(Collectors.toList()));
     }
 
@@ -45,7 +48,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return studentRepository.findAll().stream()
                 .map(student -> new StudentProgressStats(
                         student.getId(),
-                        student.getFirstName() + " " + student.getLastName(),
+                        displayName(student.getFirstName(), student.getLastName()),
                         student.getAssignedMentor() != null ? "ACTIVE" : "INACTIVE",
                         student.getAttendance(),
                         student.getCgpa()))
@@ -80,25 +83,21 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         List<Student> students = studentRepository.findAll();
         List<Mentor> mentors = mentorRepository.findAll();
 
-        // Students per department
         Map<String, Long> studentsPerDepartment = students.stream()
                 .collect(Collectors.groupingBy(
-                        student -> student.getCourse(),
+                        student -> departmentKey(student, UNASSIGNED),
                         Collectors.counting()));
 
-        // Mentors per department
         Map<String, Long> mentorsPerDepartment = mentors.stream()
                 .collect(Collectors.groupingBy(
-                        Mentor::getDepartment,
+                        mentor -> fallback(mentor.getDepartment(), UNASSIGNED),
                         Collectors.counting()));
 
-        // Average CGPA by department
         Map<String, Double> averageCgpaByDepartment = students.stream()
                 .collect(Collectors.groupingBy(
-                        Student::getCourse,
+                        student -> departmentKey(student, UNASSIGNED),
                         Collectors.averagingDouble(Student::getCgpa)));
 
-        // Top performing departments (based on average CGPA)
         List<String> topPerformingDepartments = averageCgpaByDepartment.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .limit(5)
@@ -118,35 +117,31 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     public AnalyticsResponse.StudentStats getStudentStats() {
         List<Student> students = studentRepository.findAll();
 
-        // Students by batch
         Map<String, Long> studentsByBatch = students.stream()
                 .collect(Collectors.groupingBy(
-                        Student::getBatch,
+                        student -> fallback(student.getBatch(), UNASSIGNED),
                         Collectors.counting()));
 
-        // Students by semester
         Map<Integer, Long> studentsBySemester = students.stream()
+                .filter(student -> student.getSemester() > 0)
                 .collect(Collectors.groupingBy(
                         Student::getSemester,
                         Collectors.counting()));
 
-        // Average CGPA
         double averageCgpa = students.stream()
                 .mapToDouble(Student::getCgpa)
                 .average()
                 .orElse(0.0);
 
-        // Students per mentor
         Map<String, Long> studentsPerMentor = students.stream()
                 .filter(s -> s.getAssignedMentor() != null)
                 .collect(Collectors.groupingBy(
-                        s -> s.getAssignedMentor().getMentorId(),
+                        s -> mentorKey(s.getAssignedMentor()),
                         Collectors.counting()));
 
-        // Attendance by batch
         Map<String, Double> attendanceByBatch = students.stream()
                 .collect(Collectors.groupingBy(
-                        Student::getBatch,
+                        student -> fallback(student.getBatch(), UNASSIGNED),
                         Collectors.averagingDouble(Student::getAttendance)));
 
         return AnalyticsResponse.StudentStats.builder()
@@ -162,28 +157,27 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Cacheable(value = "analytics", key = "'mentor'")
     public AnalyticsResponse.MentorStats getMentorStats() {
         List<Mentor> mentors = mentorRepository.findAll();
+        Map<String, List<Student>> studentsByMentor = groupStudentsByMentor(studentRepository.findAll());
 
-        // Mentors by years of experience
         Map<String, Long> mentorsByExperience = mentors.stream()
                 .collect(Collectors.groupingBy(
                         mentor -> experienceRange(mentor.getYearsOfExperience()),
                         Collectors.counting()));
 
-        // Mentors by specialization
         Map<String, Long> mentorsBySpecialization = mentors.stream()
                 .collect(Collectors.groupingBy(
-                        Mentor::getSpecialization,
+                        mentor -> fallback(mentor.getSpecialization(), UNSPECIFIED),
                         Collectors.counting()));
 
-        // Average students per mentor
         double averageStudentsPerMentor = mentors.stream()
-                .mapToInt(m -> m.getAssignedStudents().size())
+                .mapToInt(mentor -> studentsByMentor.getOrDefault(mentor.getId(), Collections.emptyList()).size())
                 .average()
                 .orElse(0.0);
 
-        // Top performing mentors
         List<AnalyticsResponse.MentorPerformance> topPerformingMentors = mentors.stream()
-                .map(this::calculateMentorPerformance)
+                .map(mentor -> calculateMentorPerformance(
+                        mentor,
+                        studentsByMentor.getOrDefault(mentor.getId(), Collections.emptyList())))
                 .sorted(Comparator.comparingDouble(AnalyticsResponse.MentorPerformance::getAverageStudentCgpa)
                         .reversed())
                 .limit(5)
@@ -218,24 +212,66 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return "10+ years";
     }
 
-    private AnalyticsResponse.MentorPerformance calculateMentorPerformance(Mentor mentor) {
-        List<Student> assignedStudents = mentor.getAssignedStudents();
-        double avgCgpa = assignedStudents.stream()
+    private AnalyticsResponse.MentorPerformance calculateMentorPerformance(Mentor mentor, List<Student> assignedStudents) {
+        List<Student> students = assignedStudents == null ? Collections.emptyList() : assignedStudents;
+
+        double avgCgpa = students.stream()
                 .mapToDouble(Student::getCgpa)
                 .average()
                 .orElse(0.0);
 
-        double avgAttendance = assignedStudents.stream()
+        double avgAttendance = students.stream()
                 .mapToDouble(Student::getAttendance)
                 .average()
                 .orElse(0.0);
 
         return AnalyticsResponse.MentorPerformance.builder()
-                .mentorId(mentor.getMentorId())
-                .mentorName(mentor.getFirstName() + " " + mentor.getLastName())
-                .studentCount(assignedStudents.size())
+                .mentorId(mentorKey(mentor))
+                .mentorName(displayName(mentor.getFirstName(), mentor.getLastName()))
+                .studentCount(students.size())
                 .averageStudentCgpa(avgCgpa)
                 .averageStudentAttendance(avgAttendance)
                 .build();
+    }
+
+    /**
+     * Groups students by their assigned mentor's document id. Reading the mentor
+     * reference's id does not trigger a lazy DBRef load, so this stays a single query.
+     */
+    private Map<String, List<Student>> groupStudentsByMentor(List<Student> students) {
+        Map<String, List<Student>> grouped = new HashMap<>();
+        for (Student student : students) {
+            Mentor mentor = student.getAssignedMentor();
+            if (mentor == null || mentor.getId() == null) {
+                continue;
+            }
+            grouped.computeIfAbsent(mentor.getId(), key -> new ArrayList<>()).add(student);
+        }
+        return grouped;
+    }
+
+    private String departmentKey(Student student, String fallbackValue) {
+        if (student.getDepartment() != null && !student.getDepartment().isBlank()) {
+            return student.getDepartment().trim();
+        }
+        return fallback(student.getCourse(), fallbackValue);
+    }
+
+    private String mentorKey(Mentor mentor) {
+        String key = mentor.getMentorId();
+        if (key == null || key.isBlank()) {
+            key = mentor.getId();
+        }
+        return fallback(key, UNASSIGNED);
+    }
+
+    private String fallback(String value, String fallbackValue) {
+        return value == null || value.isBlank() ? fallbackValue : value.trim();
+    }
+
+    private String displayName(String firstName, String lastName) {
+        String name = ((firstName == null ? "" : firstName.trim()) + " "
+                + (lastName == null ? "" : lastName.trim())).trim();
+        return name.isEmpty() ? UNASSIGNED : name;
     }
 }
